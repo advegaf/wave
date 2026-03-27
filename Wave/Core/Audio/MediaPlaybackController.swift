@@ -63,8 +63,12 @@ final class MediaPlaybackController {
         }
         return await withCheckedContinuation { continuation in
             getNowPlayingInfo(DispatchQueue.main) { info in
-                let rate = info["kMRMediaRemoteNowPlayingInfoPlaybackRate"] as? Double ?? 0
-                continuation.resume(returning: rate > 0)
+                // Check playback rate if available; otherwise assume playing
+                // if any Now Playing info exists (handles browsers like Dia
+                // that register with Now Playing but don't set the rate key)
+                let rate = info["kMRMediaRemoteNowPlayingInfoPlaybackRate"] as? Double
+                let isPlaying = rate.map { $0 > 0 } ?? !info.isEmpty
+                continuation.resume(returning: isPlaying)
             }
         }
     }

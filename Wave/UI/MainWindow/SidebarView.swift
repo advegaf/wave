@@ -17,7 +17,7 @@ struct SidebarView: View {
             .listStyle(.sidebar)
 
             // Footer branding
-            Text("Wave v0.1.0")
+            Text("Wave v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0")")
                 .font(.system(size: 11))
                 .foregroundStyle(WaveTheme.textTertiary)
                 .padding(.bottom, WaveTheme.spacingMD)
