@@ -35,6 +35,11 @@ final class RecordingCoordinator: @unchecked Sendable {
     var overlayStyle: OverlayStyle = .full
     var overlayPositionY: CGFloat = 10
 
+    // MARK: - Pre-fetched Context (loaded during recording)
+    private var prefetchedDictionary: [DictionaryEntry] = []
+    private var prefetchedSnippets: [Snippet] = []
+    private var prefetchedContext: RewriteContext?
+
     // MARK: - Sound
     private let chime = ChimeSynthesizer()
 
@@ -67,6 +72,7 @@ final class RecordingCoordinator: @unchecked Sendable {
         silenceDetector.reset()
         levelMonitor.reset()
         overlayController?.hide()
+        clearPrefetchedData()
         state = .idle
     }
 
@@ -112,6 +118,18 @@ final class RecordingCoordinator: @unchecked Sendable {
         lastError = nil
 
         state = .recording
+
+        // Pre-fetch rewrite context while user is still talking
+        Task { @MainActor in
+            self.prefetchedDictionary = (try? DatabaseManager.shared.fetchDictionaryEntries()) ?? []
+            self.prefetchedSnippets = (try? DatabaseManager.shared.fetchSnippets()) ?? []
+            self.prefetchedContext = RewriteContext(
+                activeAppName: self.activeAppDetector.capturedAppName,
+                rewriteLevel: self.rewriteLevel,
+                customDictionary: self.prefetchedDictionary,
+                suggestedTone: self.activeAppDetector.suggestedTone
+            )
+        }
     }
 
     private func stopRecording() {
@@ -160,12 +178,11 @@ final class RecordingCoordinator: @unchecked Sendable {
             // 2. Don't re-activate any app — paste into whatever app
             //    has focus when processing finishes (user may have switched)
 
-            // 3. Transcribe — build context in parallel while waiting
-            let dictionary = (try? DatabaseManager.shared.fetchDictionaryEntries()) ?? []
-            let context = RewriteContext(
+            // 3. Transcribe — use pre-fetched context from recording phase
+            let context = prefetchedContext ?? RewriteContext(
                 activeAppName: activeAppDetector.capturedAppName,
                 rewriteLevel: rewriteLevel,
-                customDictionary: dictionary,
+                customDictionary: (try? DatabaseManager.shared.fetchDictionaryEntries()) ?? [],
                 suggestedTone: activeAppDetector.suggestedTone
             )
 
@@ -190,8 +207,8 @@ final class RecordingCoordinator: @unchecked Sendable {
                 return
             }
 
-            // 4. Snippet detection
-            let snippets = (try? DatabaseManager.shared.fetchSnippets()) ?? []
+            // 4. Snippet detection (use pre-fetched snippets)
+            let snippets = prefetchedSnippets.isEmpty ? ((try? DatabaseManager.shared.fetchSnippets()) ?? []) : prefetchedSnippets
             let snippetResult = detectSnippet(in: cleaned, snippets: snippets)
 
             let cleanedText: String
@@ -249,11 +266,13 @@ final class RecordingCoordinator: @unchecked Sendable {
 
             mediaController.handleRecordingEnd(behavior: playbackBehavior)
             activeAppDetector.reset()
+            clearPrefetchedData()
             state = .idle
 
         } catch {
             print("[Wave] ERROR: \(error)")
             lastError = error.localizedDescription
+            clearPrefetchedData()
             state = .idle
             mediaController.handleRecordingEnd(behavior: playbackBehavior)
         }
@@ -302,6 +321,12 @@ final class RecordingCoordinator: @unchecked Sendable {
 
     func clearWhisperKitCache() {
         whisperKitProvider.clearCacheAndReset()
+    }
+
+    private func clearPrefetchedData() {
+        prefetchedDictionary = []
+        prefetchedSnippets = []
+        prefetchedContext = nil
     }
 
     private func playHaptic() {

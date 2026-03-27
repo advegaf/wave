@@ -17,6 +17,7 @@ final class ClaudeProvider: RewriteProvider {
         let url = URL(string: "https://api.anthropic.com/v1/messages")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.timeoutInterval = 10
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -24,6 +25,7 @@ final class ClaudeProvider: RewriteProvider {
         let body: [String: Any] = [
             "model": model,
             "max_tokens": 4096,
+            "stream": true,
             "system": systemPrompt,
             "messages": [
                 ["role": "user", "content": "<dictated_text>\n\(text)\n</dictated_text>\n\nClean the dictated text above. Return ONLY the cleaned version, nothing else."]
@@ -32,7 +34,7 @@ final class ClaudeProvider: RewriteProvider {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (bytes, response) = try await URLSession.shared.bytes(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AIServiceError.invalidResponse("Not an HTTP response")
@@ -43,17 +45,28 @@ final class ClaudeProvider: RewriteProvider {
         }
 
         guard httpResponse.statusCode == 200 else {
-            let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw AIServiceError.serverError(httpResponse.statusCode, errorBody)
+            throw AIServiceError.serverError(httpResponse.statusCode, "HTTP \(httpResponse.statusCode)")
         }
 
-        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        guard let content = json?["content"] as? [[String: Any]],
-              let firstBlock = content.first,
-              let rewrittenText = firstBlock["text"] as? String else {
-            throw AIServiceError.invalidResponse("Could not parse Claude response")
+        var accumulated = ""
+        for try await line in bytes.lines {
+            guard line.hasPrefix("data: ") else { continue }
+            let jsonStr = String(line.dropFirst(6))
+            guard !jsonStr.isEmpty,
+                  let data = jsonStr.data(using: .utf8),
+                  let event = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let type = event["type"] as? String else { continue }
+
+            if type == "content_block_delta",
+               let delta = event["delta"] as? [String: Any],
+               let text = delta["text"] as? String {
+                accumulated += text
+            } else if type == "error" {
+                let msg = (event["error"] as? [String: Any])?["message"] as? String ?? "Stream error"
+                throw AIServiceError.serverError(0, msg)
+            }
         }
 
-        return rewrittenText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return accumulated.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

@@ -15,7 +15,7 @@ final class ClipboardManager {
         NSPasteboard.general.setString(text, forType: .string)
 
         // 3. Brief delay for clipboard to settle
-        try? await Task.sleep(for: .milliseconds(50))
+        try? await Task.sleep(for: .milliseconds(20))
 
         // 4. Simulate Cmd+V via CGEvent (same as Superwhisper/Freeflow)
         let source = CGEventSource(stateID: .hidSystemState)
@@ -36,7 +36,7 @@ final class ClipboardManager {
         print("[Wave] Cmd+V posted via CGEvent (.hidSystemState)")
 
         // 5. Wait for target app to process paste
-        try? await Task.sleep(for: .milliseconds(150))
+        try? await Task.sleep(for: .milliseconds(50))
 
         // 6. Restore original clipboard
         restoreClipboard()

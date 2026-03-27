@@ -1,21 +1,26 @@
 import Foundation
 
 struct PromptBuilder {
+    nonisolated(unsafe) private static var templateCache: [String: String] = [:]
+
     static func buildSystemPrompt(for context: RewriteContext) -> String {
         let templateName = context.rewriteLevel.promptFileName
 
-        guard let url = Bundle.main.url(forResource: templateName, withExtension: "txt", subdirectory: "DefaultPrompts"),
-              var template = try? String(contentsOf: url, encoding: .utf8) else {
+        let template: String
+        if let cached = templateCache[templateName] {
+            template = cached
+        } else if let url = Bundle.main.url(forResource: templateName, withExtension: "txt", subdirectory: "DefaultPrompts"),
+                  let loaded = try? String(contentsOf: url, encoding: .utf8) {
+            templateCache[templateName] = loaded
+            template = loaded
+        } else {
             return fallbackPrompt(for: context)
         }
 
-        // Replace placeholders
-        template = template.replacingOccurrences(of: "{{APP_NAME}}", with: context.activeAppName)
-
-        let dictionaryContext = buildDictionaryContext(from: context.customDictionary)
-        template = template.replacingOccurrences(of: "{{DICTIONARY_CONTEXT}}", with: dictionaryContext)
-
-        return template
+        var result = template
+        result = result.replacingOccurrences(of: "{{APP_NAME}}", with: context.activeAppName)
+        result = result.replacingOccurrences(of: "{{DICTIONARY_CONTEXT}}", with: buildDictionaryContext(from: context.customDictionary))
+        return result
     }
 
     private static func buildDictionaryContext(from entries: [DictionaryEntry]) -> String {
