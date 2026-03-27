@@ -35,6 +35,7 @@ struct WaveApp: App {
             .onChange(of: appState.selectedTranscriptionProvider) { syncCoordinatorSettings() }
             .onChange(of: appState.selectedRewriteProvider) { syncCoordinatorSettings() }
             .onChange(of: appState.soundEffectsEnabled) { syncCoordinatorSettings() }
+            .onChange(of: appState.soundEffectsVolume) { syncCoordinatorSettings() }
             .onChange(of: appState.playbackBehavior) { syncCoordinatorSettings() }
         }
         .defaultSize(width: WaveTheme.windowWidth, height: WaveTheme.windowHeight)
@@ -87,6 +88,7 @@ struct WaveApp: App {
         coordinator.rewriteProvider = appState.selectedRewriteProvider
         coordinator.rewriteLevel = appState.selectedRewriteLevel
         coordinator.soundEffectsEnabled = appState.soundEffectsEnabled
+        coordinator.soundEffectsVolume = appState.soundEffectsVolume
         coordinator.playbackBehavior = appState.playbackBehavior
         coordinator.overlayStyle = appState.overlayStyle
         coordinator.overlayPositionY = appState.overlayPositionY

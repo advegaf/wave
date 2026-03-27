@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 
+@MainActor
 final class OverlayWindowController {
     private var panel: NSPanel?
     private var hostingView: NSHostingView<WaveformView>?
@@ -79,8 +80,10 @@ final class OverlayWindowController {
                 NSRect(x: xPos, y: endY, width: width, height: height),
                 display: true
             )
-        }, completionHandler: { [weak self] in
-            self?.dismissPanel()
+        }, completionHandler: {
+            Task { @MainActor [weak self] in
+                self?.dismissPanel()
+            }
         })
     }
 

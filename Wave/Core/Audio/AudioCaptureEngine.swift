@@ -235,11 +235,12 @@ final class AudioCaptureEngine: @unchecked Sendable {
                     mElement: kAudioObjectPropertyElementMain
                 )
 
-                var name: CFString = "" as CFString
-                var nameSize = UInt32(MemoryLayout<CFString>.size)
+                var name: Unmanaged<CFString>?
+                var nameSize = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
                 AudioObjectGetPropertyData(deviceID, &nameAddress, 0, nil, &nameSize, &name)
+                let deviceName = name?.takeRetainedValue() as String? ?? "Unknown"
 
-                inputDevices.append((id: deviceID, name: name as String))
+                inputDevices.append((id: deviceID, name: deviceName))
             }
         }
 

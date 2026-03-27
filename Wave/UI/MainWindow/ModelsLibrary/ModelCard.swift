@@ -37,6 +37,6 @@ struct ModelCard: View {
             .frame(width: 220)
             .cardStyle()
         }
-        .buttonStyle(.pressableCard)
+        .buttonStyle(.plain)
     }
 }

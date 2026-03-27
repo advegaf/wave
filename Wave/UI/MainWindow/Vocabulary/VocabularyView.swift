@@ -6,8 +6,6 @@ struct VocabularyView: View {
     @State private var newWord = ""
     @State private var newReplacement = ""
     @State private var newCategory: DictionaryEntry.Category = .general
-    @State private var appeared = false
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: WaveTheme.spacingXL) {
@@ -27,7 +25,6 @@ struct VocabularyView: View {
         }
         .onAppear {
             loadEntries()
-            triggerStaggerOnce(for: "vocabulary", appeared: &appeared)
         }
     }
 
@@ -90,7 +87,6 @@ struct VocabularyView: View {
                         VocabularyEntryCard(entry: entry) {
                             deleteEntry(id: entry.id)
                         }
-                        .staggeredAppear(index: index, appeared: appeared)
                     }
                 }
             }

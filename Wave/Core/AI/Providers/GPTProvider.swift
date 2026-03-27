@@ -24,7 +24,7 @@ final class GPTProvider: RewriteProvider {
             "model": model,
             "messages": [
                 ["role": "system", "content": systemPrompt],
-                ["role": "user", "content": text]
+                ["role": "user", "content": "<dictated_text>\n\(text)\n</dictated_text>\n\nClean the dictated text above. Return ONLY the cleaned version, nothing else."]
             ],
             "max_tokens": 4096,
             "temperature": 0.3

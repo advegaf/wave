@@ -1,14 +1,5 @@
 import SwiftUI
 
-// MARK: - Stagger Animation Tracking
-
-/// Tracks which screens have already shown their stagger animation
-/// so items don't re-animate when revisiting tabs.
-private final class StaggerTracker: @unchecked Sendable {
-    static let shared = StaggerTracker()
-    var appearedScreens: Set<String> = []
-}
-
 extension View {
     /// Conditionally applies a modifier
     @ViewBuilder
@@ -19,43 +10,6 @@ extension View {
             self
         }
     }
-
-    /// Staggered appear animation for list items (first appear only per screen)
-    func staggeredAppear(index: Int, appeared: Bool) -> some View {
-        self
-            .opacity(appeared ? 1 : 0)
-            .offset(y: appeared ? 0 : 8)
-            .animation(
-                .easeOut(duration: 0.3).delay(Double(index) * 0.05),
-                value: appeared
-            )
-    }
-
-}
-
-/// Call in onAppear to trigger stagger only on first visit per screen
-func triggerStaggerOnce(for screenId: String, appeared: inout Bool) {
-    if StaggerTracker.shared.appearedScreens.contains(screenId) {
-        appeared = true
-    } else {
-        StaggerTracker.shared.appearedScreens.insert(screenId)
-        withAnimation { appeared = true }
-    }
-}
-
-// MARK: - Pressable Card Button Style
-
-struct PressableCardStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-            .brightness(configuration.isPressed ? 0.03 : 0)
-            .animation(.spring(duration: 0.16), value: configuration.isPressed)
-    }
-}
-
-extension ButtonStyle where Self == PressableCardStyle {
-    static var pressableCard: PressableCardStyle { PressableCardStyle() }
 }
 
 // MARK: - Help Tooltip Icon
@@ -84,7 +38,7 @@ struct HelpTooltipIcon: View {
     }
 }
 
-// MARK: - Dotted Slider (snap haptics)
+// MARK: - Dotted Slider (compact, matching Superwhisper)
 
 struct DottedSlider: View {
     @Binding var value: Float
@@ -93,23 +47,10 @@ struct DottedSlider: View {
     @State private var lastSnap: Int = -1
 
     var body: some View {
-        ZStack(alignment: .center) {
-            // Dot indicators
-            GeometryReader { geo in
-                HStack(spacing: 0) {
-                    ForEach(0...steps, id: \.self) { _ in
-                        Circle()
-                            .fill(WaveTheme.textTertiary.opacity(0.5))
-                            .frame(width: 3, height: 3)
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-                .frame(height: geo.size.height)
-            }
-
-            // Actual slider on top
+        VStack(spacing: 2) {
             Slider(value: $value, in: range)
                 .tint(WaveTheme.accent)
+                .controlSize(.small)
                 .onChange(of: value) { _, newValue in
                     let currentSnap = Int((newValue - range.lowerBound) / (range.upperBound - range.lowerBound) * Float(steps))
                     if currentSnap != lastSnap {
@@ -117,6 +58,16 @@ struct DottedSlider: View {
                         NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
                     }
                 }
+
+            // Dots below the slider track
+            HStack(spacing: 0) {
+                ForEach(0...steps, id: \.self) { _ in
+                    Circle()
+                        .fill(WaveTheme.textTertiary.opacity(0.4))
+                        .frame(width: 2.5, height: 2.5)
+                        .frame(maxWidth: .infinity)
+                }
+            }
         }
     }
 }

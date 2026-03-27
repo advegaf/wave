@@ -3,11 +3,6 @@ import Observation
 
 @Observable
 final class AppState {
-    // MARK: - Recording
-    var recordingState: RecordingState = .idle
-    var currentAmplitude: Float = 0.0
-    var recordingDuration: TimeInterval = 0.0
-
     // MARK: - Settings (loaded from UserPreferences)
     var selectedRewriteLevel: RewriteLevel
     var selectedTranscriptionProvider: TranscriptionProviderType
@@ -67,14 +62,6 @@ final class AppState {
     var selectedSidebarItem: SidebarItem = .home
     var isMainWindowOpen: Bool = false
 
-    // MARK: - Computed
-    var isRecording: Bool {
-        recordingState == .recording
-    }
-
-    var isProcessing: Bool {
-        recordingState == .processing
-    }
 }
 
 // MARK: - Enums

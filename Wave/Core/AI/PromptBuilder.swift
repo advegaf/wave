@@ -5,7 +5,7 @@ struct PromptBuilder {
         let templateName = context.rewriteLevel.promptFileName
 
         guard let url = Bundle.main.url(forResource: templateName, withExtension: "txt", subdirectory: "DefaultPrompts"),
-              var template = try? String(contentsOf: url) else {
+              var template = try? String(contentsOf: url, encoding: .utf8) else {
             return fallbackPrompt(for: context)
         }
 

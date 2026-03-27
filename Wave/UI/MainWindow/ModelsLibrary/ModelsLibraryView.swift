@@ -3,8 +3,6 @@ import SwiftUI
 struct ModelsLibraryView: View {
     @Bindable var appState: AppState
     @State private var selectedModel: AIModelConfig?
-    @State private var appeared = false
-
     private var voiceModels: [AIModelConfig] {
         AIModelConfig.defaultModels.filter { $0.modelType == .voice }
     }
@@ -35,9 +33,6 @@ struct ModelsLibraryView: View {
             }
             .padding(WaveTheme.spacingXL)
         }
-        .onAppear {
-            triggerStaggerOnce(for: "modelsLibrary", appeared: &appeared)
-        }
         .sheet(item: $selectedModel) { model in
             ModelDetailSheet(model: model)
         }
@@ -55,7 +50,6 @@ struct ModelsLibraryView: View {
                     tintColor: .purple.opacity(0.15),
                     accentColor: .purple
                 )
-                .staggeredAppear(index: 0, appeared: appeared)
 
                 RecommendedComboCard(
                     title: "Fastest",
@@ -64,7 +58,6 @@ struct ModelsLibraryView: View {
                     tintColor: .orange.opacity(0.15),
                     accentColor: .orange
                 )
-                .staggeredAppear(index: 1, appeared: appeared)
 
                 RecommendedComboCard(
                     title: "Budget",
@@ -73,7 +66,6 @@ struct ModelsLibraryView: View {
                     tintColor: .green.opacity(0.15),
                     accentColor: .green
                 )
-                .staggeredAppear(index: 2, appeared: appeared)
             }
         }
         .scrollTargetBehavior(.viewAligned)
@@ -106,7 +98,6 @@ struct ModelsLibraryView: View {
                         ModelCard(model: model) {
                             selectedModel = model
                         }
-                        .staggeredAppear(index: index, appeared: appeared)
                     }
                 }
             }

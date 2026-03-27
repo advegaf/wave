@@ -6,9 +6,6 @@ final class DatabaseManager: @unchecked Sendable {
 
     private var dbPool: DatabasePool?
 
-    var reader: DatabaseReader? { dbPool }
-    var writer: DatabaseWriter? { dbPool }
-
     func setup() throws {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let waveDir = appSupport.appendingPathComponent("Wave", isDirectory: true)
@@ -68,6 +65,10 @@ final class DatabaseManager: @unchecked Sendable {
                 t.column("totalDurationSeconds", .double).notNull().defaults(to: 0)
                 t.column("appsUsed", .text).notNull().defaults(to: "[]")
             }
+        }
+
+        migrator.registerMigration("v2") { db in
+            try db.create(indexOn: "history_entries", columns: ["createdAt"])
         }
 
         return migrator
@@ -144,13 +145,14 @@ final class DatabaseManager: @unchecked Sendable {
 
     func searchHistory(query: String) throws -> [HistoryEntry] {
         try dbPool?.read { db in
+            let sql = """
+                SELECT history_entries.* FROM history_entries
+                JOIN history_fts ON history_fts.rowid = history_entries.rowid
+                WHERE history_fts MATCH ?
+                ORDER BY history_entries.createdAt DESC
+                """
             let pattern = FTS5Pattern(matchingAllPrefixesIn: query)
-            return try HistoryEntry
-                .joining(required: HistoryEntry.hasOne(
-                    HistoryEntry.self,
-                    using: ForeignKey(["rowid"], to: ["rowid"])
-                ))
-                .fetchAll(db)
+            return try HistoryEntry.fetchAll(db, sql: sql, arguments: [pattern])
         } ?? []
     }
 
@@ -166,54 +168,35 @@ final class DatabaseManager: @unchecked Sendable {
         }
     }
 
-    // MARK: - Stats Queries
+    // MARK: - Stats (single query for all weekly stats)
 
-    func fetchWordsThisWeek() throws -> Int {
+    struct WeeklyStats {
+        var wordsThisWeek: Int = 0
+        var averageWPM: Int = 0
+        var uniqueApps: Int = 0
+        var timeSavedMinutes: Int = 0
+    }
+
+    func fetchWeeklyStats() throws -> WeeklyStats {
         try dbPool?.read { db in
             let startOfWeek = Calendar.current.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
             let row = try Row.fetchOne(db, sql: """
-                SELECT COALESCE(SUM(wordCount), 0) as total
+                SELECT
+                    COALESCE(SUM(wordCount), 0) as totalWords,
+                    COALESCE(AVG(CASE WHEN durationSeconds > 0 THEN wordCount * 60.0 / durationSeconds END), 0) as avgWPM,
+                    COUNT(DISTINCT sourceApp) as uniqueApps
                 FROM history_entries
                 WHERE createdAt >= ?
                 """, arguments: [startOfWeek])
-            return row?["total"] ?? 0
-        } ?? 0
-    }
-
-    func fetchAverageWPM() throws -> Int {
-        try dbPool?.read { db in
-            let row = try Row.fetchOne(db, sql: """
-                SELECT COALESCE(AVG(wordCount * 60.0 / durationSeconds), 0) as avg_wpm
-                FROM history_entries
-                WHERE durationSeconds > 0
-                """)
-            let value: Double = row?["avg_wpm"] ?? 0
-            return Int(value)
-        } ?? 0
-    }
-
-    func fetchUniqueAppsThisWeek() throws -> Int {
-        try dbPool?.read { db in
-            let startOfWeek = Calendar.current.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
-            let row = try Row.fetchOne(db, sql: """
-                SELECT COUNT(DISTINCT sourceApp) as count
-                FROM history_entries
-                WHERE sourceApp IS NOT NULL AND createdAt >= ?
-                """, arguments: [startOfWeek])
-            return row?["count"] ?? 0
-        } ?? 0
-    }
-
-    func fetchTimeSavedMinutes() throws -> Int {
-        try dbPool?.read { db in
-            let startOfWeek = Calendar.current.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
-            let row = try Row.fetchOne(db, sql: """
-                SELECT COALESCE(SUM(wordCount), 0) as total
-                FROM history_entries
-                WHERE createdAt >= ?
-                """, arguments: [startOfWeek])
-            let totalWords: Int = row?["total"] ?? 0
-            return totalWords / 40 // Average typing speed ~40 WPM
-        } ?? 0
+            let totalWords: Int = row?["totalWords"] ?? 0
+            let avgWPM: Double = row?["avgWPM"] ?? 0
+            let uniqueApps: Int = row?["uniqueApps"] ?? 0
+            return WeeklyStats(
+                wordsThisWeek: totalWords,
+                averageWPM: Int(avgWPM),
+                uniqueApps: uniqueApps,
+                timeSavedMinutes: totalWords / 40
+            )
+        } ?? WeeklyStats()
     }
 }

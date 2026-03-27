@@ -4,8 +4,6 @@ struct HistoryView: View {
     @State private var entries: [HistoryEntry] = []
     @State private var searchText = ""
     @State private var totalCount = 0
-    @State private var appeared = false
-
     var body: some View {
         VStack(spacing: 0) {
             // Search bar
@@ -50,7 +48,6 @@ struct HistoryView: View {
                         Section {
                             ForEach(Array((grouped[date] ?? []).enumerated()), id: \.element.id) { index, entry in
                                 HistoryEntryCard(entry: entry)
-                                    .staggeredAppear(index: index, appeared: appeared)
                             }
                         } header: {
                             HStack {
@@ -81,7 +78,6 @@ struct HistoryView: View {
         }
         .onAppear {
             loadHistory()
-            triggerStaggerOnce(for: "history", appeared: &appeared)
         }
     }
 
@@ -127,6 +123,6 @@ struct HistoryEntryCard: View {
             .background(WaveTheme.surfacePrimary)
             .clipShape(RoundedRectangle(cornerRadius: WaveTheme.radiusInner))
         }
-        .buttonStyle(.pressableCard)
+        .buttonStyle(.plain)
     }
 }

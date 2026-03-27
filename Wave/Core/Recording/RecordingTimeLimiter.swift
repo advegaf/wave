@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 @Observable
-final class RecordingTimeLimiter {
+final class RecordingTimeLimiter: @unchecked Sendable {
     private(set) var elapsedSeconds: TimeInterval = 0
     private(set) var hasShownWarning = false
     private(set) var hasShownNudge = false

@@ -2,8 +2,6 @@ import SwiftUI
 
 struct ModesView: View {
     @Bindable var appState: AppState
-    @State private var appeared = false
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: WaveTheme.spacingXL) {
@@ -23,14 +21,10 @@ struct ModesView: View {
                             isSelected: appState.selectedRewriteLevel == level,
                             onSelect: { appState.selectedRewriteLevel = level }
                         )
-                        .staggeredAppear(index: index, appeared: appeared)
                     }
                 }
             }
             .padding(WaveTheme.spacingXL)
-        }
-        .onAppear {
-            triggerStaggerOnce(for: "modes", appeared: &appeared)
         }
         .onChange(of: appState.selectedRewriteLevel) { appState.saveToPreferences() }
     }
@@ -61,7 +55,7 @@ struct RewriteLevelCard: View {
             }
             .cardStyle()
         }
-        .buttonStyle(.pressableCard)
+        .buttonStyle(.plain)
         .overlay(
             RoundedRectangle(cornerRadius: WaveTheme.radiusMD)
                 .stroke(isSelected ? WaveTheme.accent : .clear, lineWidth: 1.5)

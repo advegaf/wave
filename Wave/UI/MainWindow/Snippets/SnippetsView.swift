@@ -4,8 +4,6 @@ struct SnippetsView: View {
     @State private var snippets: [Snippet] = []
     @State private var selectedSnippet: Snippet?
     @State private var isCreating = false
-    @State private var appeared = false
-
     var body: some View {
         HSplitView {
             // List panel
@@ -31,7 +29,7 @@ struct SnippetsView: View {
 
                 if snippets.isEmpty {
                     EmptyStateView(
-                        icon: "text.snippet",
+                        icon: "doc.text.fill",
                         title: "No snippets yet",
                         subtitle: "Create text expansions triggered by your voice.",
                         actionLabel: "Create your first snippet",
@@ -70,8 +68,7 @@ struct SnippetsView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: WaveTheme.radiusInner))
                                     .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 0.5)
                                 }
-                                .buttonStyle(.pressableCard)
-                                .staggeredAppear(index: index, appeared: appeared)
+                                .buttonStyle(.plain)
                             }
                         }
                         .padding(.horizontal, WaveTheme.spacingLG)
@@ -97,7 +94,7 @@ struct SnippetsView: View {
                 )
             } else {
                 EmptyStateView(
-                    icon: "text.snippet",
+                    icon: "doc.text.fill",
                     title: "Select a snippet to edit",
                     subtitle: "Choose a snippet from the list or create a new one."
                 )
@@ -105,7 +102,6 @@ struct SnippetsView: View {
         }
         .onAppear {
             loadSnippets()
-            triggerStaggerOnce(for: "snippets", appeared: &appeared)
         }
     }
 

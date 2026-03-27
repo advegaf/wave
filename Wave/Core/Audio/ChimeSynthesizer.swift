@@ -1,4 +1,4 @@
-import AVFoundation
+@preconcurrency import AVFoundation
 import AppKit
 
 /// Generates Siri-style two-tone chime sounds programmatically.
@@ -6,14 +6,16 @@ final class ChimeSynthesizer {
     private var audioEngine: AVAudioEngine?
     private var playerNode: AVAudioPlayerNode?
 
+    var volume: Float = 0.7
+
     /// Play a rising two-tone chime (recording start)
     func playStartChime() {
-        playChime(frequencies: [880, 1175], duration: 0.08) // A5 → D6 (rising)
+        playChime(frequencies: [880, 1175], duration: 0.08)
     }
 
     /// Play a falling two-tone chime (recording stop)
     func playStopChime() {
-        playChime(frequencies: [1175, 880], duration: 0.08) // D6 → A5 (falling)
+        playChime(frequencies: [1175, 880], duration: 0.08)
     }
 
     private func playChime(frequencies: [Double], duration: Double) {
@@ -32,7 +34,7 @@ final class ChimeSynthesizer {
             for i in 0..<samplesPerTone {
                 let t = Double(i) / sampleRate
                 // Sine wave with fast exponential decay envelope
-                let envelope = exp(-t * 20.0) * 0.3
+                let envelope = exp(-t * 20.0) * Double(volume)
                 let sample = Float(sin(2.0 * .pi * freq * t) * envelope)
                 data[offset + i] = sample
             }
@@ -47,7 +49,7 @@ final class ChimeSynthesizer {
         do {
             try engine.start()
             player.play()
-            player.scheduleBuffer(buffer) {
+            player.scheduleBuffer(buffer) { [engine] in
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     engine.stop()
                 }

@@ -26,7 +26,7 @@ final class ClaudeProvider: RewriteProvider {
             "max_tokens": 4096,
             "system": systemPrompt,
             "messages": [
-                ["role": "user", "content": text]
+                ["role": "user", "content": "<dictated_text>\n\(text)\n</dictated_text>\n\nClean the dictated text above. Return ONLY the cleaned version, nothing else."]
             ]
         ]
 

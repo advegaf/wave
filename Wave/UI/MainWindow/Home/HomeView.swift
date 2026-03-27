@@ -5,12 +5,9 @@ struct HomeView: View {
     var coordinator: RecordingCoordinator
 
     @State private var totalWords = 0
-    @State private var totalRecordings = 0
     @State private var appsUsed = 0
     @State private var averageWPM = 0
     @State private var timeSaved = 0
-    @State private var appeared = false
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: WaveTheme.spacingXL) {
@@ -22,7 +19,6 @@ struct HomeView: View {
         }
         .onAppear {
             loadStats()
-            triggerStaggerOnce(for: "home", appeared: &appeared)
         }
     }
 
@@ -53,9 +49,8 @@ struct HomeView: View {
                     icon: "record.circle",
                     title: "Start recording",
                     subtitle: "Turn your voice to text with a single click.",
-                    shortcut: "⌥ Space"
+                    shortcut: "⌘⇧ Space"
                 )
-                .staggeredAppear(index: 0, appeared: appeared)
 
                 QuickActionRow(
                     icon: "keyboard",
@@ -63,7 +58,6 @@ struct HomeView: View {
                     subtitle: "Change the keyboard shortcuts for Wave.",
                     shortcut: nil
                 )
-                .staggeredAppear(index: 1, appeared: appeared)
 
                 QuickActionRow(
                     icon: "slider.horizontal.3",
@@ -71,7 +65,6 @@ struct HomeView: View {
                     subtitle: "Set how aggressively Wave cleans up your text.",
                     shortcut: nil
                 )
-                .staggeredAppear(index: 2, appeared: appeared)
 
                 QuickActionRow(
                     icon: "book",
@@ -79,7 +72,6 @@ struct HomeView: View {
                     subtitle: "Teach Wave custom words, names, or industry terms.",
                     shortcut: nil
                 )
-                .staggeredAppear(index: 3, appeared: appeared)
             }
             .cardStyle()
         }
@@ -127,11 +119,11 @@ struct HomeView: View {
     // MARK: - Helpers
 
     private func loadStats() {
-        averageWPM = (try? DatabaseManager.shared.fetchAverageWPM()) ?? 0
-        totalWords = (try? DatabaseManager.shared.fetchWordsThisWeek()) ?? 0
-        appsUsed = (try? DatabaseManager.shared.fetchUniqueAppsThisWeek()) ?? 0
-        timeSaved = (try? DatabaseManager.shared.fetchTimeSavedMinutes()) ?? 0
-        totalRecordings = (try? DatabaseManager.shared.fetchHistoryCount()) ?? 0
+        let stats = (try? DatabaseManager.shared.fetchWeeklyStats()) ?? DatabaseManager.WeeklyStats()
+        averageWPM = stats.averageWPM
+        totalWords = stats.wordsThisWeek
+        appsUsed = stats.uniqueApps
+        timeSaved = stats.timeSavedMinutes
     }
 
     private func formattedDate(_ date: Date) -> String {

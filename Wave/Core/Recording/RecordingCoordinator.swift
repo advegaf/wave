@@ -2,6 +2,7 @@ import AppKit
 import AVFoundation
 import Observation
 
+@MainActor
 @Observable
 final class RecordingCoordinator: @unchecked Sendable {
     // MARK: - State
@@ -12,19 +13,20 @@ final class RecordingCoordinator: @unchecked Sendable {
     // MARK: - Dependencies
     let audioEngine = AudioCaptureEngine()
     let levelMonitor = AudioLevelMonitor()
-    let silenceDetector = SilenceDetector()
+    nonisolated(unsafe) let silenceDetector = SilenceDetector()
     let timeLimiter = RecordingTimeLimiter()
-    let clipboardManager = ClipboardManager()
-    let activeAppDetector = ActiveAppDetector()
-    let mediaController = MediaPlaybackController()
-    let transcriptionService = TranscriptionService()
-    let rewriteService = RewriteService()
+    nonisolated(unsafe) let clipboardManager = ClipboardManager()
+    nonisolated(unsafe) let activeAppDetector = ActiveAppDetector()
+    nonisolated(unsafe) let mediaController = MediaPlaybackController()
+    nonisolated(unsafe) let transcriptionService = TranscriptionService()
+    nonisolated(unsafe) let rewriteService = RewriteService()
 
     // MARK: - Settings (injected from AppState)
     var rewriteLevel: RewriteLevel = .moderate
     var transcriptionProvider: TranscriptionProviderType = .whisper
     var rewriteProvider: RewriteProviderType = .claude
     var soundEffectsEnabled: Bool = true
+    var soundEffectsVolume: Float = 0.7 { didSet { chime.volume = soundEffectsVolume } }
     var playbackBehavior: PlaybackBehavior = .pause
 
     // MARK: - Overlay & Hotkey
@@ -175,13 +177,12 @@ final class RecordingCoordinator: @unchecked Sendable {
             let transcribeTime = CFAbsoluteTimeGetCurrent()
             print("[Wave] Transcribed: \"\(rawTranscript)\" (\(Int((transcribeTime - convertTime) * 1000))ms)")
 
-            // Filter out Whisper artifacts (non-speech descriptions)
+            // Filter out Whisper artifacts — any text that is entirely [tags] or (tags)
             let cleaned = rawTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
-            let whisperArtifacts = ["(stuttering)", "[sad music]", "(silence)", "[music]",
-                                     "[applause]", "(inaudible)", "[laughter]", "[noise]",
-                                     "(no audio)", "[blank_audio]", "(no speech)"]
-            let isArtifact = whisperArtifacts.contains(where: { cleaned.localizedCaseInsensitiveContains($0) })
-                             && cleaned.count < 30
+            let isArtifact = cleaned.range(
+                of: #"^(\[[\w\s\-']+\]|\([\w\s\-']+\)|\s|\.)+$"#,
+                options: .regularExpression
+            ) != nil
 
             guard !cleaned.isEmpty, !isArtifact else {
                 print("[Wave] Skipping — empty or Whisper artifact: \"\(cleaned)\"")
@@ -189,15 +190,41 @@ final class RecordingCoordinator: @unchecked Sendable {
                 return
             }
 
-            // 4. Rewrite with LLM
-            let cleanedText = try await rewriteService.rewrite(
-                text: rawTranscript,
-                context: context,
-                using: rewriteProvider
-            )
+            // 4. Snippet detection
+            let snippets = (try? DatabaseManager.shared.fetchSnippets()) ?? []
+            let snippetResult = detectSnippet(in: cleaned, snippets: snippets)
 
-            let rewriteTime = CFAbsoluteTimeGetCurrent()
-            print("[Wave] Rewritten: \"\(cleanedText)\" (\(Int((rewriteTime - transcribeTime) * 1000))ms)")
+            let cleanedText: String
+            let rewriteTime: CFAbsoluteTime
+
+            switch snippetResult {
+            case .exactMatch(let content):
+                // Entire transcript is a trigger phrase — paste snippet directly, skip LLM
+                cleanedText = content
+                rewriteTime = CFAbsoluteTimeGetCurrent()
+                print("[Wave] Snippet exact match — skipping LLM (\(Int((rewriteTime - transcribeTime) * 1000))ms)")
+
+            case .partialMatch(let expandedText):
+                // Trigger phrase found within sentence — replace and send to LLM
+                print("[Wave] Snippet partial match — sending expanded text to LLM")
+                cleanedText = try await rewriteService.rewrite(
+                    text: expandedText,
+                    context: context,
+                    using: rewriteProvider
+                )
+                rewriteTime = CFAbsoluteTimeGetCurrent()
+                print("[Wave] Rewritten: \"\(cleanedText)\" (\(Int((rewriteTime - transcribeTime) * 1000))ms)")
+
+            case .noMatch:
+                // No snippets — normal LLM rewrite
+                cleanedText = try await rewriteService.rewrite(
+                    text: rawTranscript,
+                    context: context,
+                    using: rewriteProvider
+                )
+                rewriteTime = CFAbsoluteTimeGetCurrent()
+                print("[Wave] Rewritten: \"\(cleanedText)\" (\(Int((rewriteTime - transcribeTime) * 1000))ms)")
+            }
 
             // 5. Paste immediately (app should already have focus from step 2)
             state = .pasting
@@ -249,7 +276,7 @@ final class RecordingCoordinator: @unchecked Sendable {
         }
     }
 
-    private let whisperKitProvider = WhisperKitProvider()
+    nonisolated(unsafe) private let whisperKitProvider = WhisperKitProvider()
 
     private func setupAIProviders() {
         transcriptionService.registerProvider(DeepgramProvider())
@@ -267,5 +294,48 @@ final class RecordingCoordinator: @unchecked Sendable {
 
     private func playHaptic() {
         NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
+    }
+
+    // MARK: - Snippet Detection
+
+    private enum SnippetResult {
+        case exactMatch(String)    // Entire transcript is a trigger — use snippet content directly
+        case partialMatch(String)  // Trigger found in sentence — expanded text with snippet content
+        case noMatch
+    }
+
+    private func detectSnippet(in transcript: String, snippets: [Snippet]) -> SnippetResult {
+        guard !snippets.isEmpty else { return .noMatch }
+
+        let lowered = transcript.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Check for exact match first (entire transcript is just the trigger phrase)
+        for snippet in snippets {
+            let trigger = snippet.triggerPhrase.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            if lowered == trigger {
+                print("[Wave] Snippet exact match: \"\(snippet.triggerPhrase)\" → expanding")
+                return .exactMatch(snippet.content)
+            }
+        }
+
+        // Check for partial match (trigger phrase appears as a word within the sentence)
+        var expandedText = transcript
+        var didReplace = false
+
+        for snippet in snippets {
+            let trigger = snippet.triggerPhrase
+            // Case-insensitive word boundary match
+            if let range = expandedText.range(of: trigger, options: [.caseInsensitive]) {
+                expandedText = expandedText.replacingCharacters(in: range, with: snippet.content)
+                didReplace = true
+                print("[Wave] Snippet partial match: \"\(trigger)\" replaced in sentence")
+            }
+        }
+
+        if didReplace {
+            return .partialMatch(expandedText)
+        }
+
+        return .noMatch
     }
 }

@@ -22,12 +22,8 @@ struct MainWindowView: View {
                 )
                 .ignoresSafeArea()
 
-                // Content with crossfade transition
                 detailView
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .id(appState.selectedSidebarItem)
-                    .transition(.opacity)
-                    .animation(.easeOut(duration: 0.15), value: appState.selectedSidebarItem)
             }
         }
         .navigationSplitViewStyle(.balanced)
@@ -37,12 +33,7 @@ struct MainWindowView: View {
         )
         .toolbar {
             ToolbarItem(placement: .automatic) {
-                HStack(spacing: WaveTheme.spacingSM) {
-                    MicrophoneSelector()
-                    Image(systemName: "display")
-                        .font(.system(size: 12))
-                        .foregroundStyle(WaveTheme.textTertiary)
-                }
+                MicrophoneSelector()
             }
         }
     }
@@ -86,9 +77,16 @@ struct MicrophoneSelector: View {
         } label: {
             HStack(spacing: 6) {
                 Text("\(selectedDevice) (Default)")
-                    .font(.system(size: 12))
+                    .font(.system(size: 11))
+                    .lineLimit(1)
+                Image(systemName: "display")
+                    .font(.system(size: 10))
             }
             .foregroundStyle(WaveTheme.textSecondary)
+            .padding(.horizontal, WaveTheme.spacingMD)
+            .padding(.vertical, WaveTheme.spacingSM)
+            .background(WaveTheme.surfacePrimary)
+            .clipShape(RoundedRectangle(cornerRadius: WaveTheme.radiusSM))
         }
         .menuStyle(.borderlessButton)
         .onAppear {

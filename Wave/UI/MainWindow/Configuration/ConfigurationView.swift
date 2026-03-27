@@ -166,12 +166,12 @@ struct OverlayPositionPicker: View {
     @Binding var positionY: CGFloat
 
     private let positions: [(label: String, value: CGFloat)] = [
+        ("Below dock", -30),
+        ("On dock", -10),
         ("Dock level", 0),
         ("Just above", 10),
         ("Low", 30),
-        ("Middle-low", 60),
         ("Center", 120),
-        ("Middle-high", 200),
     ]
 
     var body: some View {
@@ -194,14 +194,14 @@ struct OverlayPositionPicker: View {
                 VStack {
                     Spacer()
                     HStack(spacing: 1) {
+                        let heights: [CGFloat] = [4, 7, 5, 9, 6, 10, 8, 5, 9, 7, 10, 6, 8, 4, 7]
                         ForEach(0..<15, id: \.self) { i in
-                            let h = CGFloat.random(in: 3...10)
                             RoundedRectangle(cornerRadius: 1)
                                 .fill(WaveTheme.accent)
-                                .frame(width: 2, height: h)
+                                .frame(width: 2, height: heights[i])
                         }
                     }
-                    .padding(.bottom, 14 + positionY / 3)
+                    .padding(.bottom, max(2, 14 + positionY / 3))
                 }
                 .frame(height: 140)
             }
@@ -226,7 +226,7 @@ struct OverlayPositionPicker: View {
                 }
             }
 
-            Slider(value: $positionY, in: 0...300, step: 5)
+            Slider(value: $positionY, in: -50...300, step: 5)
                 .tint(WaveTheme.accent)
         }
     }
@@ -257,7 +257,7 @@ struct OverlayStyleOption<Preview: View>: View {
                     .padding(-4)
             )
         }
-        .buttonStyle(.pressableCard)
+        .buttonStyle(.plain)
     }
 }
 

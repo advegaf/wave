@@ -5,8 +5,6 @@ struct SetupWizardView: View {
     @Bindable var appState: AppState
     @State private var currentStep = 0
     @State private var anthropicKey = ""
-    @State private var appeared = false
-
     // Model download state
     @State private var isDownloadingModel = false
     @State private var modelDownloaded = false
@@ -76,31 +74,27 @@ struct SetupWizardView: View {
             minHeight: WaveTheme.windowHeight
         )
         .background(WaveTheme.background)
-        .onAppear {
-            triggerStaggerOnce(for: "setup", appeared: &appeared)
-        }
     }
 
     // MARK: - Step 0: Welcome + Permissions
 
     private var welcomeStep: some View {
         VStack(spacing: WaveTheme.spacingXL) {
-            Image(systemName: "waveform.circle.fill")
-                .font(.system(size: 56))
-                .foregroundStyle(WaveTheme.accent)
-                .staggeredAppear(index: 0, appeared: appeared)
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 72, height: 72)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
 
             VStack(spacing: WaveTheme.spacingSM) {
                 Text("Welcome to Wave")
                     .font(.system(size: 24, weight: .bold))
-                    .staggeredAppear(index: 1, appeared: appeared)
 
                 Text("Turn your voice into polished text, anywhere on your Mac.")
                     .font(.system(size: 14))
                     .foregroundStyle(WaveTheme.textSecondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 340)
-                    .staggeredAppear(index: 2, appeared: appeared)
             }
 
             VStack(spacing: WaveTheme.spacingMD) {
@@ -112,7 +106,6 @@ struct SetupWizardView: View {
                         Task { await AudioSessionManager.shared.requestMicrophonePermission() }
                     }
                 )
-                .staggeredAppear(index: 3, appeared: appeared)
 
                 PermissionRow(
                     title: "Accessibility",
@@ -122,7 +115,6 @@ struct SetupWizardView: View {
                         AccessibilityManager.shared.requestAccessibilityPermission()
                     }
                 )
-                .staggeredAppear(index: 4, appeared: appeared)
             }
         }
     }
