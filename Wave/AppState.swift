@@ -37,7 +37,15 @@ final class AppState {
             UserDefaults.standard.removeObject(forKey: "autoPauseMedia")
             prefs.playbackBehavior = self.playbackBehavior.rawValue
         } else {
-            self.playbackBehavior = PlaybackBehavior(rawValue: prefs.playbackBehavior) ?? .pause
+            self.playbackBehavior = PlaybackBehavior(rawValue: prefs.playbackBehavior) ?? .doNothing
+        }
+
+        // Migrate existing users: reset to .doNothing since .pause previously
+        // launched Apple Music when no media was playing
+        if UserDefaults.standard.object(forKey: "playbackBehaviorMigratedV2") == nil {
+            self.playbackBehavior = .doNothing
+            prefs.playbackBehavior = PlaybackBehavior.doNothing.rawValue
+            UserDefaults.standard.set(true, forKey: "playbackBehaviorMigratedV2")
         }
     }
 
@@ -57,6 +65,10 @@ final class AppState {
         prefs.hasCompletedSetup = hasCompletedSetup
         prefs.overlayPositionY = Double(overlayPositionY)
     }
+
+    // MARK: - WhisperKit Status
+    var whisperKitError: String?
+    var isWhisperKitReady: Bool = false
 
     // MARK: - Navigation
     var selectedSidebarItem: SidebarItem = .home

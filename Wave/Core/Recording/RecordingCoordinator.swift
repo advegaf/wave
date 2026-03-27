@@ -49,7 +49,7 @@ final class RecordingCoordinator: @unchecked Sendable {
     func toggleRecording() {
         switch state {
         case .idle:
-            startRecording()
+            Task { await startRecording() }
         case .recording:
             stopRecording()
         default:
@@ -72,7 +72,7 @@ final class RecordingCoordinator: @unchecked Sendable {
 
     func startPushToTalk() {
         guard state == .idle else { return }
-        startRecording()
+        Task { await startRecording() }
     }
 
     func stopPushToTalk() {
@@ -82,7 +82,7 @@ final class RecordingCoordinator: @unchecked Sendable {
 
     // MARK: - Private
 
-    private func startRecording() {
+    private func startRecording() async {
         state = .activating
 
         // Capture active app before Wave takes focus
@@ -94,8 +94,8 @@ final class RecordingCoordinator: @unchecked Sendable {
             chime.playStartChime()
         }
 
-        // Handle media playback based on behavior setting
-        mediaController.handleRecordingStart(behavior: playbackBehavior)
+        // Handle media playback based on behavior setting (checks if media is actually playing)
+        await mediaController.handleRecordingStart(behavior: playbackBehavior)
 
         // Show overlay waveform (sync style + position before showing)
         overlayController?.overlayStyle = overlayStyle
@@ -286,10 +286,22 @@ final class RecordingCoordinator: @unchecked Sendable {
     }
 
     /// Pre-initialize WhisperKit model so first transcription is fast
-    func preloadWhisperModel() {
+    func preloadWhisperModel(appState: AppState? = nil) {
         Task {
-            try? await whisperKitProvider.initialize()
+            do {
+                try await whisperKitProvider.initialize()
+                appState?.isWhisperKitReady = true
+                appState?.whisperKitError = nil
+            } catch {
+                print("[Wave] WhisperKit preload failed: \(error)")
+                appState?.whisperKitError = error.localizedDescription
+                appState?.isWhisperKitReady = false
+            }
         }
+    }
+
+    func clearWhisperKitCache() {
+        whisperKitProvider.clearCacheAndReset()
     }
 
     private func playHaptic() {

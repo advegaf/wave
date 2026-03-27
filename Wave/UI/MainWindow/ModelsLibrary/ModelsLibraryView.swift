@@ -2,7 +2,9 @@ import SwiftUI
 
 struct ModelsLibraryView: View {
     @Bindable var appState: AppState
+    var coordinator: RecordingCoordinator
     @State private var selectedModel: AIModelConfig?
+    @State private var isRedownloading = false
     private var voiceModels: [AIModelConfig] {
         AIModelConfig.defaultModels.filter { $0.modelType == .voice }
     }
@@ -30,11 +32,92 @@ struct ModelsLibraryView: View {
                     description: "Used to recognize and transcribe spoken audio as accurately as possible. Trained on acoustic data like waveforms and phonetics.",
                     models: voiceModels
                 )
+
+                // WhisperKit local model status
+                whisperKitStatusSection
             }
             .padding(WaveTheme.spacingXL)
         }
         .sheet(item: $selectedModel) { model in
             ModelDetailSheet(model: model)
+        }
+    }
+
+    // MARK: - WhisperKit Status
+
+    private var whisperKitStatusSection: some View {
+        VStack(alignment: .leading, spacing: WaveTheme.spacingSM) {
+            Text("Local Voice Model")
+                .font(.system(size: 16, weight: .bold))
+
+            Text("WhisperKit runs speech recognition entirely on your Mac — no network calls required.")
+                .font(.system(size: 13))
+                .foregroundStyle(WaveTheme.textSecondary)
+
+            HStack(spacing: WaveTheme.spacingMD) {
+                // Status indicator
+                HStack(spacing: WaveTheme.spacingSM) {
+                    Circle()
+                        .fill(whisperKitStatusColor)
+                        .frame(width: 8, height: 8)
+                    Text(whisperKitStatusText)
+                        .font(.system(size: 13))
+                        .foregroundStyle(WaveTheme.textSecondary)
+                }
+
+                Spacer()
+
+                if isRedownloading {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Downloading...")
+                        .font(.system(size: 12))
+                        .foregroundStyle(WaveTheme.textSecondary)
+                } else {
+                    Button("Re-download Model") {
+                        redownloadModel()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+            }
+            .padding(WaveTheme.spacingMD)
+            .background(WaveTheme.surfaceSecondary.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: WaveTheme.radiusInner))
+
+            if let error = appState.whisperKitError {
+                Text(error)
+                    .font(.system(size: 12))
+                    .foregroundStyle(WaveTheme.destructive)
+                    .padding(.top, 2)
+            }
+        }
+    }
+
+    private var whisperKitStatusColor: Color {
+        if appState.isWhisperKitReady { return .green }
+        if appState.whisperKitError != nil { return .red }
+        return .orange
+    }
+
+    private var whisperKitStatusText: String {
+        if appState.isWhisperKitReady { return "Ready" }
+        if appState.whisperKitError != nil { return "Error" }
+        return "Not initialized"
+    }
+
+    private func redownloadModel() {
+        isRedownloading = true
+        appState.whisperKitError = nil
+        coordinator.clearWhisperKitCache()
+        coordinator.preloadWhisperModel(appState: appState)
+        // Monitor for completion
+        Task {
+            // Poll until state changes (preload runs in its own Task)
+            while !appState.isWhisperKitReady && appState.whisperKitError == nil {
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+            isRedownloading = false
         }
     }
 

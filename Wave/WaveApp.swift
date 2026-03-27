@@ -47,7 +47,7 @@ struct WaveApp: App {
         syncCoordinatorSettings()
         setupOverlay()
         setupHotkeys()
-        coordinator.preloadWhisperModel()
+        coordinator.preloadWhisperModel(appState: appState)
     }
 
     private func setupDatabase() {

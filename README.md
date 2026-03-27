@@ -35,7 +35,7 @@ That's it. ~1.5 second pipeline from voice to polished text.
 
 ```bash
 # Clone
-git clone https://github.com/yourusername/wave.git
+git clone https://github.com/advegaf/wave.git
 cd wave
 
 # Generate Xcode project

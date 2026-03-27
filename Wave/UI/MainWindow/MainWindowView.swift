@@ -54,7 +54,7 @@ struct MainWindowView: View {
         case .sound:
             SoundView(appState: appState)
         case .modelsLibrary:
-            ModelsLibraryView(appState: appState)
+            ModelsLibraryView(appState: appState, coordinator: coordinator)
         case .history:
             HistoryView()
         }

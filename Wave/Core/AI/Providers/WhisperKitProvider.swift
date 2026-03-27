@@ -14,6 +14,7 @@ final class WhisperKitProvider: TranscriptionProvider {
     func initialize() async throws {
         guard whisperKit == nil, !isInitializing else { return }
         isInitializing = true
+        defer { isInitializing = false }
 
         print("[Wave] Initializing WhisperKit (local model)...")
         let startTime = CFAbsoluteTimeGetCurrent()
@@ -25,7 +26,26 @@ final class WhisperKitProvider: TranscriptionProvider {
 
         let elapsed = Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000)
         print("[Wave] WhisperKit ready (\(elapsed)ms)")
+    }
+
+    /// Clear cached model files and reset state for re-download
+    func clearCacheAndReset() {
+        whisperKit = nil
         isInitializing = false
+
+        let cacheDirectories = [
+            FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+                .appendingPathComponent("com.argmaxinc.whisperkit"),
+            FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+                .appendingPathComponent("huggingface"),
+        ]
+
+        for dir in cacheDirectories.compactMap({ $0 }) {
+            if FileManager.default.fileExists(atPath: dir.path) {
+                try? FileManager.default.removeItem(at: dir)
+                print("[Wave] Cleared WhisperKit cache: \(dir.path)")
+            }
+        }
     }
 
     func transcribe(audioData: Data, format: AudioFormat) async throws -> String {
