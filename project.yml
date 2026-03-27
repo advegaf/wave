@@ -1,0 +1,96 @@
+name: Wave
+options:
+  bundleIdPrefix: com.wave
+  deploymentTarget:
+    macOS: "26.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "26.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+
+packages:
+  KeyboardShortcuts:
+    url: https://github.com/sindresorhus/KeyboardShortcuts
+    from: "2.0.0"
+  GRDB:
+    url: https://github.com/groue/GRDB.swift
+    from: "7.0.0"
+  KeychainAccess:
+    url: https://github.com/kishikawakatsumi/KeychainAccess
+    from: "4.2.2"
+  LaunchAtLogin:
+    url: https://github.com/sindresorhus/LaunchAtLogin-Modern
+    from: "1.0.0"
+  WhisperKit:
+    url: https://github.com/argmaxinc/WhisperKit
+    from: "0.9.0"
+
+targets:
+  Wave:
+    type: application
+    platform: macOS
+    sources:
+      - Wave
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.wave.app
+        PRODUCT_NAME: Wave
+        INFOPLIST_FILE: Wave/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Wave/Wave.entitlements
+        ENABLE_APP_SANDBOX: false
+        ENABLE_HARDENED_RUNTIME: true
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "Apple Development"
+        DEVELOPMENT_TEAM: ""
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+        COMBINE_HIDPI_IMAGES: true
+    dependencies:
+      - package: KeyboardShortcuts
+      - package: GRDB
+        product: GRDB
+      - package: KeychainAccess
+      - package: LaunchAtLogin
+      - package: WhisperKit
+    entitlements:
+      path: Wave/Wave.entitlements
+      properties:
+        com.apple.security.device.audio-input: true
+        com.apple.security.automation.apple-events: true
+    info:
+      path: Wave/Info.plist
+      properties:
+        LSUIElement: true
+        LSApplicationCategoryType: public.app-category.productivity
+        NSMicrophoneUsageDescription: "Wave needs microphone access to transcribe your speech into text."
+        NSAppleEventsUsageDescription: "Wave needs to send paste commands to insert transcribed text into your apps."
+        CFBundleShortVersionString: "0.1.0"
+
+  WaveTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - WaveTests
+    dependencies:
+      - target: Wave
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.wave.app.tests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Wave.app/Contents/MacOS/Wave"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
+  WaveUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - WaveUITests
+    dependencies:
+      - target: Wave
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.wave.app.uitests
+        TEST_TARGET_NAME: Wave
