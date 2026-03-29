@@ -4,14 +4,8 @@ import CoreGraphics
 // MARK: - MediaRemote Bridge (private framework, loaded dynamically)
 
 private enum MediaRemoteBridge {
-    // Detection: direct boolean "is anything playing?"
     typealias IsPlayingCallback = @convention(c) (DispatchQueue, @escaping (Bool) -> Void) -> Void
-
-    // Control: send command directly to Now Playing app via media daemon
-    // Commands: 0=Play, 1=Pause, 2=TogglePlayPause, 3=Stop
     typealias SendCommandFn = @convention(c) (UInt32, UnsafeRawPointer?) -> Bool
-
-    // Registration: required before queries return accurate state
     typealias RegisterFn = @convention(c) (DispatchQueue) -> Void
 
     nonisolated(unsafe) private static let bundle: CFBundle? = {
@@ -48,26 +42,45 @@ private enum MediaRemoteBridge {
     }
 }
 
+// MARK: - File Logger
+
+private func mediaLog(_ message: String) {
+    let logDir = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Logs/Wave")
+    try? FileManager.default.createDirectory(at: logDir, withIntermediateDirectories: true)
+    let logFile = logDir.appendingPathComponent("media.log")
+    let ts = ISO8601DateFormatter().string(from: Date())
+    let line = "[\(ts)] \(message)\n"
+    if let data = line.data(using: .utf8) {
+        if let handle = try? FileHandle(forWritingTo: logFile) {
+            handle.seekToEndOfFile()
+            handle.write(data)
+            handle.closeFile()
+        } else {
+            try? data.write(to: logFile)
+        }
+    }
+}
+
 // MARK: - Media Playback Controller
 
 final class MediaPlaybackController {
     private var didPause = false
-
-    init() {
-        // Register with MediaRemote so queries return accurate state
-        MediaRemoteBridge.register()
-    }
+    private var didRegister = false
 
     func handleRecordingStart(behavior: PlaybackBehavior) async {
+        mediaLog("handleRecordingStart called, behavior=\(behavior)")
+
         switch behavior {
         case .pause:
             let playing = await isMediaCurrentlyPlaying()
+            mediaLog("isPlaying=\(playing)")
             if playing {
-                print("[Wave] Media is playing — sending togglePlayPause via MediaRemote")
+                mediaLog("Sending togglePlayPause")
                 sendCommand(.togglePlayPause)
                 didPause = true
             } else {
-                print("[Wave] No media playing — skipping pause")
+                mediaLog("No media playing, skipping")
                 didPause = false
             }
         case .stop:
@@ -77,6 +90,7 @@ final class MediaPlaybackController {
             }
             didPause = false
         case .doNothing:
+            mediaLog("Behavior is doNothing, skipping")
             didPause = false
         }
     }
@@ -85,7 +99,7 @@ final class MediaPlaybackController {
         switch behavior {
         case .pause:
             if didPause {
-                print("[Wave] Resuming media via MediaRemote")
+                mediaLog("Resuming media — sending togglePlayPause")
                 sendCommand(.togglePlayPause)
                 didPause = false
             }
@@ -103,9 +117,25 @@ final class MediaPlaybackController {
         case stop = 3
     }
 
+    private func ensureRegistered() {
+        guard !didRegister else { return }
+        didRegister = true
+
+        mediaLog("Registering with MediaRemote...")
+        mediaLog("  bundle loaded: \(MediaRemoteBridge.isPlaying != nil || MediaRemoteBridge.sendCommand != nil)")
+        mediaLog("  isPlaying fn: \(MediaRemoteBridge.isPlaying != nil)")
+        mediaLog("  sendCommand fn: \(MediaRemoteBridge.sendCommand != nil)")
+        mediaLog("  register fn: \(MediaRemoteBridge.registerForNotifications != nil)")
+
+        MediaRemoteBridge.register()
+        mediaLog("Registration done")
+    }
+
     private func isMediaCurrentlyPlaying() async -> Bool {
+        ensureRegistered()
+
         guard let isPlayingFn = MediaRemoteBridge.isPlaying else {
-            print("[Wave] MediaRemote unavailable — media pause disabled")
+            mediaLog("isPlaying function is nil — MediaRemote unavailable")
             return false
         }
         return await withCheckedContinuation { continuation in
@@ -117,9 +147,10 @@ final class MediaPlaybackController {
 
     private func sendCommand(_ command: MediaCommand) {
         guard let sendFn = MediaRemoteBridge.sendCommand else {
-            print("[Wave] MediaRemote sendCommand unavailable")
+            mediaLog("sendCommand function is nil — cannot send")
             return
         }
-        let _ = sendFn(command.rawValue, nil)
+        let result = sendFn(command.rawValue, nil)
+        mediaLog("sendCommand(\(command), rawValue=\(command.rawValue)) returned \(result)")
     }
 }
