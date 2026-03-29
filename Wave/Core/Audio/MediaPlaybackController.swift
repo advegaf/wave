@@ -33,6 +33,66 @@ private enum MediaRemoteBridge {
     }
 }
 
+// MARK: - Helper Binary (checks isPlaying from a subprocess)
+
+private enum MediaStateHelper {
+    static let helperSource = """
+    import Foundation
+    let path = "/System/Library/PrivateFrameworks/MediaRemote.framework"
+    guard let url = CFURLCreateWithFileSystemPath(kCFAllocatorDefault, path as CFString, .cfurlposixPathStyle, true),
+          let bundle = CFBundleCreate(kCFAllocatorDefault, url) else { exit(1) }
+    typealias RegFn = @convention(c) (DispatchQueue) -> Void
+    if let p = CFBundleGetFunctionPointerForName(bundle, "MRMediaRemoteRegisterForNowPlayingNotifications" as CFString) {
+        unsafeBitCast(p, to: RegFn.self)(DispatchQueue.main)
+    }
+    typealias IsPlayingFn = @convention(c) (DispatchQueue, @escaping (Bool) -> Void) -> Void
+    guard let ptr = CFBundleGetFunctionPointerForName(bundle, "MRMediaRemoteGetNowPlayingApplicationIsPlaying" as CFString) else { exit(1) }
+    let check = unsafeBitCast(ptr, to: IsPlayingFn.self)
+    check(DispatchQueue.main) { playing in
+        exit(playing ? 0 : 1)
+    }
+    RunLoop.main.run(until: Date(timeIntervalSinceNow: 2))
+    exit(1)
+    """
+
+    static let supportDir: URL = {
+        let dir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/Wave")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }()
+
+    static let binaryPath = supportDir.appendingPathComponent("media-state")
+    static let sourcePath = supportDir.appendingPathComponent("media-state.swift")
+
+    static func ensureCompiled() {
+        if FileManager.default.fileExists(atPath: binaryPath.path) { return }
+
+        try? helperSource.write(to: sourcePath, atomically: true, encoding: .utf8)
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/swiftc")
+        process.arguments = [sourcePath.path, "-o", binaryPath.path]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        process.waitUntilExit()
+    }
+
+    static func isPlaying() -> Bool {
+        ensureCompiled()
+        guard FileManager.default.fileExists(atPath: binaryPath.path) else { return true }
+
+        let process = Process()
+        process.executableURL = binaryPath
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        process.waitUntilExit()
+        return process.terminationStatus == 0
+    }
+}
+
 // MARK: - Media Playback Controller
 
 final class MediaPlaybackController {
@@ -44,9 +104,14 @@ final class MediaPlaybackController {
 
         switch behavior {
         case .pause:
-            didPause = send(command: 1) // kMRPause — returns true only if it had an effect
+            if MediaStateHelper.isPlaying() {
+                send(command: 1) // kMRPause
+                didPause = true
+            } else {
+                didPause = false
+            }
         case .stop:
-            let _ = send(command: 1)
+            send(command: 1)
             didPause = false
         case .doNothing:
             didPause = false
@@ -55,7 +120,7 @@ final class MediaPlaybackController {
 
     func handleRecordingEnd(behavior: PlaybackBehavior) {
         guard case .pause = behavior, didPause else { return }
-        let _ = send(command: 0) // kMRPlay
+        send(command: 0) // kMRPlay
         didPause = false
     }
 
@@ -65,9 +130,8 @@ final class MediaPlaybackController {
         MediaRemoteBridge.register()
     }
 
-    @discardableResult
-    private func send(command: UInt32) -> Bool {
-        guard let sendFn = MediaRemoteBridge.sendCommand else { return false }
-        return sendFn(command, nil)
+    private func send(command: UInt32) {
+        guard let sendFn = MediaRemoteBridge.sendCommand else { return }
+        let _ = sendFn(command, nil)
     }
 }
