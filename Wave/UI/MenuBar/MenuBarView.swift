@@ -74,6 +74,20 @@ struct MenuBarView: View {
                 }
                 .padding(.horizontal, WaveTheme.spacingMD)
                 .padding(.vertical, WaveTheme.spacingSM)
+
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(lastText, forType: .string)
+                } label: {
+                    HStack {
+                        Image(systemName: "doc.on.doc")
+                        Text("Copy Last Transcript")
+                        Spacer()
+                    }
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, WaveTheme.spacingMD)
+                .padding(.vertical, WaveTheme.spacingSM)
             }
 
             // Error
