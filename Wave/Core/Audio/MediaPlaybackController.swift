@@ -62,29 +62,21 @@ private enum MediaStateHelper {
         return dir
     }()
 
-    static let binaryPath = supportDir.appendingPathComponent("media-state")
-    static let sourcePath = supportDir.appendingPathComponent("media-state.swift")
+    static let scriptPath = supportDir.appendingPathComponent("media-state.swift")
 
-    static func ensureCompiled() {
-        if FileManager.default.fileExists(atPath: binaryPath.path) { return }
-
-        try? helperSource.write(to: sourcePath, atomically: true, encoding: .utf8)
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/swiftc")
-        process.arguments = [sourcePath.path, "-o", binaryPath.path]
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        try? process.run()
-        process.waitUntilExit()
+    static func ensureScript() {
+        if FileManager.default.fileExists(atPath: scriptPath.path) { return }
+        try? helperSource.write(to: scriptPath, atomically: true, encoding: .utf8)
     }
 
     static func isPlaying() -> Bool {
-        ensureCompiled()
-        guard FileManager.default.fileExists(atPath: binaryPath.path) else { return true }
+        ensureScript()
 
+        // Run via /usr/bin/swift (Apple-signed, has MediaRemote entitlements).
+        // A compiled binary would be unsigned and blocked like the app itself.
         let process = Process()
-        process.executableURL = binaryPath
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/swift")
+        process.arguments = [scriptPath.path]
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         try? process.run()
