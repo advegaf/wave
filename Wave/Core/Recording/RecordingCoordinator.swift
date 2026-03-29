@@ -72,6 +72,7 @@ final class RecordingCoordinator: @unchecked Sendable {
         silenceDetector.reset()
         levelMonitor.reset()
         overlayController?.hide()
+        mediaController.handleRecordingEnd(behavior: playbackBehavior)
         clearPrefetchedData()
         state = .idle
     }
@@ -152,6 +153,9 @@ final class RecordingCoordinator: @unchecked Sendable {
         timeLimiter.stop()
         silenceDetector.reset()
         levelMonitor.reset()
+
+        // Resume media immediately when recording stops
+        mediaController.handleRecordingEnd(behavior: playbackBehavior)
 
         // Process in background
         Task {
@@ -264,7 +268,6 @@ final class RecordingCoordinator: @unchecked Sendable {
             )
             Task.detached { try? DatabaseManager.shared.addHistoryEntry(entry) }
 
-            mediaController.handleRecordingEnd(behavior: playbackBehavior)
             activeAppDetector.reset()
             clearPrefetchedData()
             state = .idle
@@ -274,7 +277,6 @@ final class RecordingCoordinator: @unchecked Sendable {
             lastError = error.localizedDescription
             clearPrefetchedData()
             state = .idle
-            mediaController.handleRecordingEnd(behavior: playbackBehavior)
         }
     }
 
