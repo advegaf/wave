@@ -9,7 +9,7 @@ private enum MediaRemoteBridge {
 
     // Control: send command directly to Now Playing app via media daemon
     // Commands: 0=Play, 1=Pause, 2=TogglePlayPause, 3=Stop
-    typealias SendCommandFn = @convention(c) (UInt32, CFDictionary?) -> Bool
+    typealias SendCommandFn = @convention(c) (UInt32, UnsafeRawPointer?) -> Bool
 
     // Registration: required before queries return accurate state
     typealias RegisterFn = @convention(c) (DispatchQueue) -> Void
@@ -63,8 +63,8 @@ final class MediaPlaybackController {
         case .pause:
             let playing = await isMediaCurrentlyPlaying()
             if playing {
-                print("[Wave] Media is playing — sending pause via MediaRemote")
-                sendCommand(.pause)
+                print("[Wave] Media is playing — sending togglePlayPause via MediaRemote")
+                sendCommand(.togglePlayPause)
                 didPause = true
             } else {
                 print("[Wave] No media playing — skipping pause")
@@ -73,7 +73,7 @@ final class MediaPlaybackController {
         case .stop:
             let playing = await isMediaCurrentlyPlaying()
             if playing {
-                sendCommand(.stop)
+                sendCommand(.togglePlayPause)
             }
             didPause = false
         case .doNothing:
@@ -86,7 +86,7 @@ final class MediaPlaybackController {
         case .pause:
             if didPause {
                 print("[Wave] Resuming media via MediaRemote")
-                sendCommand(.play)
+                sendCommand(.togglePlayPause)
                 didPause = false
             }
         case .stop, .doNothing:
