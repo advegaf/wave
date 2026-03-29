@@ -1,10 +1,8 @@
-import AppKit
-import CoreGraphics
+import Foundation
 
 // MARK: - MediaRemote Bridge (private framework, loaded dynamically)
 
 private enum MediaRemoteBridge {
-    typealias IsPlayingCallback = @convention(c) (DispatchQueue, @escaping (Bool) -> Void) -> Void
     typealias SendCommandFn = @convention(c) (UInt32, UnsafeRawPointer?) -> Bool
     typealias RegisterFn = @convention(c) (DispatchQueue) -> Void
 
@@ -14,13 +12,6 @@ private enum MediaRemoteBridge {
             kCFAllocatorDefault, path as CFString, .cfurlposixPathStyle, true
         ) else { return nil }
         return CFBundleCreate(kCFAllocatorDefault, url)
-    }()
-
-    static let isPlaying: IsPlayingCallback? = {
-        guard let bundle, let ptr = CFBundleGetFunctionPointerForName(
-            bundle, "MRMediaRemoteGetNowPlayingApplicationIsPlaying" as CFString
-        ) else { return nil }
-        return unsafeBitCast(ptr, to: IsPlayingCallback.self)
     }()
 
     static let sendCommand: SendCommandFn? = {
@@ -42,26 +33,6 @@ private enum MediaRemoteBridge {
     }
 }
 
-// MARK: - File Logger
-
-private func mediaLog(_ message: String) {
-    let logDir = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent("Library/Logs/Wave")
-    try? FileManager.default.createDirectory(at: logDir, withIntermediateDirectories: true)
-    let logFile = logDir.appendingPathComponent("media.log")
-    let ts = ISO8601DateFormatter().string(from: Date())
-    let line = "[\(ts)] \(message)\n"
-    if let data = line.data(using: .utf8) {
-        if let handle = try? FileHandle(forWritingTo: logFile) {
-            handle.seekToEndOfFile()
-            handle.write(data)
-            handle.closeFile()
-        } else {
-            try? data.write(to: logFile)
-        }
-    }
-}
-
 // MARK: - Media Playback Controller
 
 final class MediaPlaybackController {
@@ -69,71 +40,34 @@ final class MediaPlaybackController {
     private var didRegister = false
 
     func handleRecordingStart(behavior: PlaybackBehavior) {
-        mediaLog("handleRecordingStart called, behavior=\(behavior)")
         ensureRegistered()
 
         switch behavior {
         case .pause:
-            // Send togglePlayPause directly — MRMediaRemoteSendCommand only
-            // targets the registered Now Playing app. If nothing is registered,
-            // the command is ignored (no Apple Music launch unlike CGEvent).
-            // We skip the isPlaying check because the app is denied read access
-            // to Now Playing state by mediaremoted (entitlement restriction).
-            mediaLog("Sending togglePlayPause to pause")
-            sendCommand(.togglePlayPause)
+            send(command: 1) // kMRPause — idempotent, no effect if already paused
             didPause = true
         case .stop:
-            mediaLog("Sending togglePlayPause to stop")
-            sendCommand(.togglePlayPause)
+            send(command: 1)
             didPause = false
         case .doNothing:
-            mediaLog("Behavior is doNothing, skipping")
             didPause = false
         }
     }
 
     func handleRecordingEnd(behavior: PlaybackBehavior) {
-        switch behavior {
-        case .pause:
-            if didPause {
-                mediaLog("Resuming media — sending togglePlayPause")
-                sendCommand(.togglePlayPause)
-                didPause = false
-            }
-        case .stop, .doNothing:
-            break
-        }
-    }
-
-    // MARK: - Private
-
-    private enum MediaCommand: UInt32 {
-        case play = 0
-        case pause = 1
-        case togglePlayPause = 2
-        case stop = 3
+        guard case .pause = behavior, didPause else { return }
+        send(command: 0) // kMRPlay — idempotent, no effect if already playing
+        didPause = false
     }
 
     private func ensureRegistered() {
         guard !didRegister else { return }
         didRegister = true
-
-        mediaLog("Registering with MediaRemote...")
-        mediaLog("  bundle loaded: \(MediaRemoteBridge.isPlaying != nil || MediaRemoteBridge.sendCommand != nil)")
-        mediaLog("  isPlaying fn: \(MediaRemoteBridge.isPlaying != nil)")
-        mediaLog("  sendCommand fn: \(MediaRemoteBridge.sendCommand != nil)")
-        mediaLog("  register fn: \(MediaRemoteBridge.registerForNotifications != nil)")
-
         MediaRemoteBridge.register()
-        mediaLog("Registration done")
     }
 
-    private func sendCommand(_ command: MediaCommand) {
-        guard let sendFn = MediaRemoteBridge.sendCommand else {
-            mediaLog("sendCommand function is nil — cannot send")
-            return
-        }
-        let result = sendFn(command.rawValue, nil)
-        mediaLog("sendCommand(\(command), rawValue=\(command.rawValue)) returned \(result)")
+    private func send(command: UInt32) {
+        guard let sendFn = MediaRemoteBridge.sendCommand else { return }
+        let _ = sendFn(command, nil)
     }
 }
