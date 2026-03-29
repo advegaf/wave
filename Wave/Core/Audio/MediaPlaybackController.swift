@@ -68,26 +68,23 @@ final class MediaPlaybackController {
     private var didPause = false
     private var didRegister = false
 
-    func handleRecordingStart(behavior: PlaybackBehavior) async {
+    func handleRecordingStart(behavior: PlaybackBehavior) {
         mediaLog("handleRecordingStart called, behavior=\(behavior)")
+        ensureRegistered()
 
         switch behavior {
         case .pause:
-            let playing = await isMediaCurrentlyPlaying()
-            mediaLog("isPlaying=\(playing)")
-            if playing {
-                mediaLog("Sending togglePlayPause")
-                sendCommand(.togglePlayPause)
-                didPause = true
-            } else {
-                mediaLog("No media playing, skipping")
-                didPause = false
-            }
+            // Send togglePlayPause directly — MRMediaRemoteSendCommand only
+            // targets the registered Now Playing app. If nothing is registered,
+            // the command is ignored (no Apple Music launch unlike CGEvent).
+            // We skip the isPlaying check because the app is denied read access
+            // to Now Playing state by mediaremoted (entitlement restriction).
+            mediaLog("Sending togglePlayPause to pause")
+            sendCommand(.togglePlayPause)
+            didPause = true
         case .stop:
-            let playing = await isMediaCurrentlyPlaying()
-            if playing {
-                sendCommand(.togglePlayPause)
-            }
+            mediaLog("Sending togglePlayPause to stop")
+            sendCommand(.togglePlayPause)
             didPause = false
         case .doNothing:
             mediaLog("Behavior is doNothing, skipping")
@@ -129,20 +126,6 @@ final class MediaPlaybackController {
 
         MediaRemoteBridge.register()
         mediaLog("Registration done")
-    }
-
-    private func isMediaCurrentlyPlaying() async -> Bool {
-        ensureRegistered()
-
-        guard let isPlayingFn = MediaRemoteBridge.isPlaying else {
-            mediaLog("isPlaying function is nil — MediaRemote unavailable")
-            return false
-        }
-        return await withCheckedContinuation { continuation in
-            isPlayingFn(DispatchQueue.main) { isPlaying in
-                continuation.resume(returning: isPlaying)
-            }
-        }
     }
 
     private func sendCommand(_ command: MediaCommand) {

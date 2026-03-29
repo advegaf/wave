@@ -54,7 +54,7 @@ final class RecordingCoordinator: @unchecked Sendable {
     func toggleRecording() {
         switch state {
         case .idle:
-            Task { await startRecording() }
+            startRecording()
         case .recording:
             stopRecording()
         default:
@@ -78,7 +78,7 @@ final class RecordingCoordinator: @unchecked Sendable {
 
     func startPushToTalk() {
         guard state == .idle else { return }
-        Task { await startRecording() }
+        startRecording()
     }
 
     func stopPushToTalk() {
@@ -88,7 +88,7 @@ final class RecordingCoordinator: @unchecked Sendable {
 
     // MARK: - Private
 
-    private func startRecording() async {
+    private func startRecording() {
         state = .activating
 
         // Capture active app before Wave takes focus
@@ -100,8 +100,8 @@ final class RecordingCoordinator: @unchecked Sendable {
             chime.playStartChime()
         }
 
-        // Handle media playback based on behavior setting (checks if media is actually playing)
-        await mediaController.handleRecordingStart(behavior: playbackBehavior)
+        // Handle media playback
+        mediaController.handleRecordingStart(behavior: playbackBehavior)
 
         // Show overlay waveform (sync style + position before showing)
         overlayController?.overlayStyle = overlayStyle
