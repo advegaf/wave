@@ -44,10 +44,9 @@ final class MediaPlaybackController {
 
         switch behavior {
         case .pause:
-            send(command: 1) // kMRPause — idempotent, no effect if already paused
-            didPause = true
+            didPause = send(command: 1) // kMRPause — returns true only if it had an effect
         case .stop:
-            send(command: 1)
+            let _ = send(command: 1)
             didPause = false
         case .doNothing:
             didPause = false
@@ -56,7 +55,7 @@ final class MediaPlaybackController {
 
     func handleRecordingEnd(behavior: PlaybackBehavior) {
         guard case .pause = behavior, didPause else { return }
-        send(command: 0) // kMRPlay — idempotent, no effect if already playing
+        let _ = send(command: 0) // kMRPlay
         didPause = false
     }
 
@@ -66,8 +65,9 @@ final class MediaPlaybackController {
         MediaRemoteBridge.register()
     }
 
-    private func send(command: UInt32) {
-        guard let sendFn = MediaRemoteBridge.sendCommand else { return }
-        let _ = sendFn(command, nil)
+    @discardableResult
+    private func send(command: UInt32) -> Bool {
+        guard let sendFn = MediaRemoteBridge.sendCommand else { return false }
+        return sendFn(command, nil)
     }
 }
