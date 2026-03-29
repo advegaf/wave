@@ -4,38 +4,76 @@ import CoreGraphics
 // MARK: - MediaRemote Bridge (private framework, loaded dynamically)
 
 private enum MediaRemoteBridge {
-    typealias NowPlayingInfoCallback = @convention(c) (DispatchQueue, @escaping ([String: Any]) -> Void) -> Void
+    // Detection: direct boolean "is anything playing?"
+    typealias IsPlayingCallback = @convention(c) (DispatchQueue, @escaping (Bool) -> Void) -> Void
 
-    static let getNowPlayingInfo: NowPlayingInfoCallback? = {
+    // Control: send command directly to Now Playing app via media daemon
+    // Commands: 0=Play, 1=Pause, 2=TogglePlayPause, 3=Stop
+    typealias SendCommandFn = @convention(c) (UInt32, CFDictionary?) -> Bool
+
+    // Registration: required before queries return accurate state
+    typealias RegisterFn = @convention(c) (DispatchQueue) -> Void
+
+    nonisolated(unsafe) private static let bundle: CFBundle? = {
         let path = "/System/Library/PrivateFrameworks/MediaRemote.framework"
         guard let url = CFURLCreateWithFileSystemPath(
             kCFAllocatorDefault, path as CFString, .cfurlposixPathStyle, true
         ) else { return nil }
-        guard let bundle = CFBundleCreate(kCFAllocatorDefault, url) else { return nil }
-        guard let ptr = CFBundleGetFunctionPointerForName(bundle, "MRMediaRemoteGetNowPlayingInfo" as CFString) else { return nil }
-        return unsafeBitCast(ptr, to: NowPlayingInfoCallback.self)
+        return CFBundleCreate(kCFAllocatorDefault, url)
     }()
+
+    static let isPlaying: IsPlayingCallback? = {
+        guard let bundle, let ptr = CFBundleGetFunctionPointerForName(
+            bundle, "MRMediaRemoteGetNowPlayingApplicationIsPlaying" as CFString
+        ) else { return nil }
+        return unsafeBitCast(ptr, to: IsPlayingCallback.self)
+    }()
+
+    static let sendCommand: SendCommandFn? = {
+        guard let bundle, let ptr = CFBundleGetFunctionPointerForName(
+            bundle, "MRMediaRemoteSendCommand" as CFString
+        ) else { return nil }
+        return unsafeBitCast(ptr, to: SendCommandFn.self)
+    }()
+
+    static let registerForNotifications: RegisterFn? = {
+        guard let bundle, let ptr = CFBundleGetFunctionPointerForName(
+            bundle, "MRMediaRemoteRegisterForNowPlayingNotifications" as CFString
+        ) else { return nil }
+        return unsafeBitCast(ptr, to: RegisterFn.self)
+    }()
+
+    static func register() {
+        registerForNotifications?(DispatchQueue.main)
+    }
 }
+
+// MARK: - Media Playback Controller
 
 final class MediaPlaybackController {
     private var didPause = false
 
+    init() {
+        // Register with MediaRemote so queries return accurate state
+        MediaRemoteBridge.register()
+    }
+
     func handleRecordingStart(behavior: PlaybackBehavior) async {
         switch behavior {
         case .pause:
-            let isPlaying = await isMediaCurrentlyPlaying()
-            if isPlaying {
-                print("[Wave] Media is playing — sending pause key")
-                sendMediaKey(keyType: 16)
+            let playing = await isMediaCurrentlyPlaying()
+            if playing {
+                print("[Wave] Media is playing — sending pause via MediaRemote")
+                sendCommand(.pause)
                 didPause = true
             } else {
-                print("[Wave] No media playing — skipping pause key")
+                print("[Wave] No media playing — skipping pause")
                 didPause = false
             }
         case .stop:
-            let isPlaying = await isMediaCurrentlyPlaying()
-            if isPlaying {
-                sendMediaKey(keyType: 17)
+            let playing = await isMediaCurrentlyPlaying()
+            if playing {
+                sendCommand(.stop)
             }
             didPause = false
         case .doNothing:
@@ -47,8 +85,8 @@ final class MediaPlaybackController {
         switch behavior {
         case .pause:
             if didPause {
-                print("[Wave] Resuming media playback")
-                sendMediaKey(keyType: 16)
+                print("[Wave] Resuming media via MediaRemote")
+                sendCommand(.play)
                 didPause = false
             }
         case .stop, .doNothing:
@@ -56,48 +94,32 @@ final class MediaPlaybackController {
         }
     }
 
+    // MARK: - Private
+
+    private enum MediaCommand: UInt32 {
+        case play = 0
+        case pause = 1
+        case togglePlayPause = 2
+        case stop = 3
+    }
+
     private func isMediaCurrentlyPlaying() async -> Bool {
-        guard let getNowPlayingInfo = MediaRemoteBridge.getNowPlayingInfo else {
+        guard let isPlayingFn = MediaRemoteBridge.isPlaying else {
             print("[Wave] MediaRemote unavailable — media pause disabled")
             return false
         }
         return await withCheckedContinuation { continuation in
-            getNowPlayingInfo(DispatchQueue.main) { info in
-                // Check playback rate if available; otherwise assume playing
-                // if any Now Playing info exists (handles browsers like Dia
-                // that register with Now Playing but don't set the rate key)
-                let rate = info["kMRMediaRemoteNowPlayingInfoPlaybackRate"] as? Double
-                let isPlaying = rate.map { $0 > 0 } ?? !info.isEmpty
+            isPlayingFn(DispatchQueue.main) { isPlaying in
                 continuation.resume(returning: isPlaying)
             }
         }
     }
 
-    private func sendMediaKey(keyType: Int) {
-        let keyDown = NSEvent.otherEvent(
-            with: .systemDefined,
-            location: .zero,
-            modifierFlags: NSEvent.ModifierFlags(rawValue: 0xa00),
-            timestamp: 0,
-            windowNumber: 0,
-            context: nil,
-            subtype: 8,
-            data1: Int((keyType << 16) | (0xa << 8)),
-            data2: -1
-        )
-        keyDown?.cgEvent?.post(tap: .cgSessionEventTap)
-
-        let keyUp = NSEvent.otherEvent(
-            with: .systemDefined,
-            location: .zero,
-            modifierFlags: NSEvent.ModifierFlags(rawValue: 0xb00),
-            timestamp: 0,
-            windowNumber: 0,
-            context: nil,
-            subtype: 8,
-            data1: Int((keyType << 16) | (0xb << 8)),
-            data2: -1
-        )
-        keyUp?.cgEvent?.post(tap: .cgSessionEventTap)
+    private func sendCommand(_ command: MediaCommand) {
+        guard let sendFn = MediaRemoteBridge.sendCommand else {
+            print("[Wave] MediaRemote sendCommand unavailable")
+            return
+        }
+        let _ = sendFn(command.rawValue, nil)
     }
 }
