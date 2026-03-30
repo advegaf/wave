@@ -154,6 +154,29 @@ struct ModelsLibraryView: View {
         .scrollTargetBehavior(.viewAligned)
     }
 
+    // MARK: - Model Selection
+
+    private func isModelActive(_ model: AIModelConfig) -> Bool {
+        if let tp = model.transcriptionProvider {
+            return appState.selectedTranscriptionProvider == tp
+        }
+        if let rp = model.rewriteProvider {
+            return appState.selectedRewriteProvider == rp
+        }
+        return false
+    }
+
+    private func activateModel(_ model: AIModelConfig) {
+        if let tp = model.transcriptionProvider {
+            appState.selectedTranscriptionProvider = tp
+            appState.saveToPreferences()
+        }
+        if let rp = model.rewriteProvider {
+            appState.selectedRewriteProvider = rp
+            appState.saveToPreferences()
+        }
+    }
+
     // MARK: - Model Section
 
     private func modelSection(title: String, description: String, models: [AIModelConfig]) -> some View {
@@ -177,10 +200,13 @@ struct ModelsLibraryView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: WaveTheme.spacingMD) {
-                    ForEach(Array(models.enumerated()), id: \.element.id) { index, model in
-                        ModelCard(model: model) {
-                            selectedModel = model
-                        }
+                    ForEach(models, id: \.id) { model in
+                        ModelCard(
+                            model: model,
+                            isActive: isModelActive(model),
+                            onSelect: { activateModel(model) },
+                            onConfigure: { selectedModel = model }
+                        )
                     }
                 }
             }

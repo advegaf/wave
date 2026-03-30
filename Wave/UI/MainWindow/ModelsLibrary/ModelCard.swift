@@ -2,11 +2,12 @@ import SwiftUI
 
 struct ModelCard: View {
     let model: AIModelConfig
-    let onTap: () -> Void
-    @State private var isFavorite = false
+    let isActive: Bool
+    let onSelect: () -> Void
+    let onConfigure: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
+        Button(action: onSelect) {
             VStack(alignment: .leading, spacing: WaveTheme.spacingSM) {
                 HStack {
                     ProviderIcon(model: model)
@@ -20,11 +21,18 @@ struct ModelCard: View {
 
                     Spacer()
 
+                    if isActive {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                            .font(.system(size: 16))
+                    }
+
                     Button {
-                        isFavorite.toggle()
+                        onConfigure()
                     } label: {
-                        Image(systemName: isFavorite ? "star.fill" : "star")
-                            .foregroundStyle(isFavorite ? .yellow : WaveTheme.textTertiary)
+                        Image(systemName: "key.fill")
+                            .foregroundStyle(WaveTheme.textTertiary)
+                            .font(.system(size: 11))
                     }
                     .buttonStyle(.plain)
                 }
@@ -36,6 +44,10 @@ struct ModelCard: View {
             }
             .frame(width: 220)
             .cardStyle()
+            .overlay(
+                RoundedRectangle(cornerRadius: WaveTheme.radiusMD)
+                    .stroke(isActive ? .green.opacity(0.5) : .clear, lineWidth: 1.5)
+            )
         }
         .buttonStyle(.plain)
     }
