@@ -42,7 +42,7 @@ struct SnippetsView: View {
                     } else {
                         ScrollView {
                             VStack(spacing: WaveTheme.spacingXS) {
-                                ForEach(Array(snippets.enumerated()), id: \.element.id) { index, snippet in
+                                ForEach(snippets, id: \.id) { snippet in
                                     Button {
                                         isCreating = false
                                         selectedSnippet = snippet

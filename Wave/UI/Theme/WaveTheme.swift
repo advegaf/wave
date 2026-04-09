@@ -32,7 +32,7 @@ enum WaveTheme {
 
     // MARK: - Window
     static let sidebarWidth: CGFloat = 200
-    static let windowWidth: CGFloat = 680
+    static let windowWidth: CGFloat = 714
     static let windowHeight: CGFloat = 480
 }
 

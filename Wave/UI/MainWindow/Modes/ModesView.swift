@@ -15,7 +15,7 @@ struct ModesView: View {
                 }
 
                 VStack(spacing: WaveTheme.spacingSM) {
-                    ForEach(Array(RewriteLevel.allCases.enumerated()), id: \.element) { index, level in
+                    ForEach(RewriteLevel.allCases, id: \.self) { level in
                         RewriteLevelCard(
                             level: level,
                             isSelected: appState.selectedRewriteLevel == level,

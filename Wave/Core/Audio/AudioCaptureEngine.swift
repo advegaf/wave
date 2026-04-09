@@ -8,14 +8,35 @@ final class AudioCaptureEngine: @unchecked Sendable {
     private var inputNode: AVAudioInputNode?
     private(set) var isCapturing = false
 
-    // Store raw float audio for later conversion
+    // Store raw float audio (capture-rate, pre-resample) for the legacy WAV path
     private var rawSamples: [Float] = []
     private var captureFormat: AVAudioFormat?
     private let lock = NSLock()
 
+    // Resampled 16 kHz mono buffer — what whisper actually consumes.
+    // Filled inline in the tap callback so the VAD can see audio in real time.
+    private var resampledSamples: [Float] = []
+
+    // Working buffer for chunking resampled audio into Silero-sized 4096-sample
+    // pieces. Drained whenever we accumulate >= one chunk.
+    private var vadStaging: [Float] = []
+
     var onAudioLevel: ((Float) -> Void)?
 
+    /// Fires when SileroVAD reports the user has finished speaking. Replaces
+    /// the old `SilenceDetector.onSilenceDetected` hook. Always called on the
+    /// main queue.
+    var onSpeechEnded: (() -> Void)?
+
     private let targetSampleRate: Double = 16000
+
+    // MARK: - VAD wiring
+
+    private let silero = SileroVAD()
+    private var hasHeardSpeech = false
+    private var hasFiredSpeechEnded = false
+    private var vadConsumerTask: Task<Void, Never>?
+    private var vadChunkContinuation: AsyncStream<[Float]>.Continuation?
 
     var selectedDeviceID: AudioDeviceID? {
         didSet {
@@ -23,6 +44,17 @@ final class AudioCaptureEngine: @unchecked Sendable {
                 stop()
                 start()
             }
+        }
+    }
+
+    /// Preload the Silero VAD CoreML model so the first recording doesn't pay
+    /// the download/load cost. Safe to call multiple times. Best called from
+    /// `RecordingCoordinator.preloadActiveModels()`.
+    func prepareVAD() async {
+        do {
+            try await silero.prepare()
+        } catch {
+            print("[AudioCaptureEngine] Silero VAD preload failed: \(error)")
         }
     }
 
@@ -46,24 +78,64 @@ final class AudioCaptureEngine: @unchecked Sendable {
 
         lock.lock()
         rawSamples.removeAll()
+        resampledSamples.removeAll()
+        vadStaging.removeAll()
+        hasHeardSpeech = false
+        hasFiredSpeechEnded = false
         lock.unlock()
+
+        // Spin up the VAD consumer task. A single consumer drains the chunk
+        // stream in order so SileroVAD's streaming state stays consistent.
+        let (stream, cont) = AsyncStream<[Float]>.makeStream()
+        vadChunkContinuation = cont
+        vadConsumerTask = Task { [silero, weak self] in
+            await silero.resetStream()
+            for await chunk in stream {
+                do {
+                    if let event = try await silero.process(chunk: chunk) {
+                        await self?.handleVAD(event: event)
+                    }
+                } catch {
+                    print("[AudioCaptureEngine] VAD process error: \(error)")
+                }
+            }
+        }
 
         inputNode!.installTap(onBus: 0, bufferSize: bufferSize, format: recordingFormat) { [weak self] buffer, _ in
             guard let self else { return }
 
-            // Calculate RMS level from input buffer
+            // Calculate RMS level for the UI waveform
             let level = self.calculateRMS(buffer: buffer)
             DispatchQueue.main.async {
                 self.onAudioLevel?(level)
             }
 
-            // Store raw float samples
-            if let channelData = buffer.floatChannelData {
-                let frameLength = Int(buffer.frameLength)
-                self.lock.lock()
-                self.rawSamples.append(contentsOf: UnsafeBufferPointer(start: channelData[0], count: frameLength))
-                self.lock.unlock()
+            guard let channelData = buffer.floatChannelData else { return }
+            let frameLength = Int(buffer.frameLength)
+            let bufferSamples = Array(UnsafeBufferPointer(start: channelData[0], count: frameLength))
+
+            // Resample inline so VAD can see 16 kHz audio in real time.
+            let sourceRate = self.captureFormat?.sampleRate ?? 48000
+            let resampledChunk: [Float]
+            if abs(sourceRate - self.targetSampleRate) > 1 {
+                resampledChunk = self.resample(bufferSamples, from: sourceRate, to: self.targetSampleRate)
+            } else {
+                resampledChunk = bufferSamples
             }
+
+            self.lock.lock()
+            self.rawSamples.append(contentsOf: bufferSamples)
+            self.resampledSamples.append(contentsOf: resampledChunk)
+            self.vadStaging.append(contentsOf: resampledChunk)
+
+            // Drain whole 4096-sample chunks into the VAD consumer.
+            let chunkSize = SileroVAD.chunkSize
+            while self.vadStaging.count >= chunkSize {
+                let chunk = Array(self.vadStaging.prefix(chunkSize))
+                self.vadStaging.removeFirst(chunkSize)
+                self.vadChunkContinuation?.yield(chunk)
+            }
+            self.lock.unlock()
         }
 
         do {
@@ -80,6 +152,35 @@ final class AudioCaptureEngine: @unchecked Sendable {
         audioEngine = nil
         inputNode = nil
         isCapturing = false
+
+        // Tear down the VAD consumer for this recording session.
+        vadChunkContinuation?.finish()
+        vadChunkContinuation = nil
+        vadConsumerTask?.cancel()
+        vadConsumerTask = nil
+    }
+
+    /// Returns the resampled 16 kHz mono float samples accumulated since the
+    /// last `clearBuffers()`. This is the new path that LocalAIEngine consumes —
+    /// no WAV header round-trip.
+    func getResampledSamples() -> [Float] {
+        lock.lock()
+        defer { lock.unlock() }
+        return resampledSamples
+    }
+
+    @MainActor
+    private func handleVAD(event: SileroVAD.SpeechEvent) async {
+        switch event {
+        case .speechStarted:
+            hasHeardSpeech = true
+        case .speechEnded:
+            // Only fire once per session, and only after we actually heard
+            // speech (avoid premature stop on background noise).
+            guard hasHeardSpeech, !hasFiredSpeechEnded else { return }
+            hasFiredSpeechEnded = true
+            onSpeechEnded?()
+        }
     }
 
     func getAccumulatedWAVData() -> Data {
@@ -116,6 +217,10 @@ final class AudioCaptureEngine: @unchecked Sendable {
     func clearBuffers() {
         lock.lock()
         rawSamples.removeAll()
+        resampledSamples.removeAll()
+        vadStaging.removeAll()
+        hasHeardSpeech = false
+        hasFiredSpeechEnded = false
         lock.unlock()
     }
 

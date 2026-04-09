@@ -5,8 +5,8 @@ import Observation
 final class AppState {
     // MARK: - Settings (loaded from UserPreferences)
     var selectedRewriteLevel: RewriteLevel
-    var selectedTranscriptionProvider: TranscriptionProviderType
-    var selectedRewriteProvider: RewriteProviderType
+    var selectedLocalLLMModelId: String
+    var llmIdleTimeoutSeconds: TimeInterval?
     var overlayStyle: OverlayStyle
     var silenceTimeoutSeconds: Double
     var soundEffectsEnabled: Bool
@@ -19,9 +19,15 @@ final class AppState {
 
     init() {
         let prefs = UserPreferences()
-        self.selectedRewriteLevel = RewriteLevel(rawValue: prefs.rewriteLevel) ?? .moderate
-        self.selectedTranscriptionProvider = TranscriptionProviderType(rawValue: prefs.transcriptionProvider) ?? .whisper
-        self.selectedRewriteProvider = RewriteProviderType(rawValue: prefs.rewriteProvider) ?? .claude
+        self.selectedRewriteLevel = RewriteLevel(rawValue: prefs.rewriteLevel) ?? .raw
+        let storedId = prefs.selectedLocalLLMModelId
+        self.selectedLocalLLMModelId = storedId.isEmpty ? LocalLLMRegistry.defaultModelId : storedId
+        switch prefs.llmIdleTimeoutSecondsRaw {
+        case ..<0:
+            self.llmIdleTimeoutSeconds = nil
+        case let value:
+            self.llmIdleTimeoutSeconds = TimeInterval(value)
+        }
         self.overlayStyle = OverlayStyle(rawValue: prefs.overlayStyle) ?? .full
         self.silenceTimeoutSeconds = prefs.silenceTimeout
         self.soundEffectsEnabled = prefs.soundEffectsEnabled
@@ -53,8 +59,8 @@ final class AppState {
     func saveToPreferences() {
         let prefs = UserPreferences()
         prefs.rewriteLevel = selectedRewriteLevel.rawValue
-        prefs.transcriptionProvider = selectedTranscriptionProvider.rawValue
-        prefs.rewriteProvider = selectedRewriteProvider.rawValue
+        prefs.selectedLocalLLMModelId = selectedLocalLLMModelId
+        prefs.llmIdleTimeoutSecondsRaw = llmIdleTimeoutSeconds.map { Int($0) } ?? -1
         prefs.overlayStyle = overlayStyle.rawValue
         prefs.silenceTimeout = silenceTimeoutSeconds
         prefs.soundEffectsEnabled = soundEffectsEnabled
@@ -79,20 +85,27 @@ final class AppState {
 // MARK: - Enums
 
 enum RewriteLevel: String, CaseIterable, Codable {
+    case raw = "Raw"
     case light = "Light"
     case moderate = "Moderate"
     case heavy = "Heavy"
 
+    /// True for any mode that requires a local LLM. Raw is the only false case.
+    /// Use this everywhere we'd otherwise have to compare against `.raw` directly.
+    var requiresLLM: Bool { self != .raw }
+
     var description: String {
         switch self {
-        case .light: "Remove fillers, fix grammar. Keep your exact phrasing."
-        case .moderate: "Clean up and restructure for clarity. Preserve your voice."
-        case .heavy: "Full rewrite into polished prose. Reads like you wrote it carefully."
+        case .raw: "Just transcribe and paste. No cleanup. Most predictable, fastest, no LLM required."
+        case .light: "Remove fillers and false starts. Pure cleanup, near-zero hallucination risk."
+        case .moderate: "Fix grammar and split run-on sentences. Preserves your voice."
+        case .heavy: "Adapt tone for the active app. Casual in Slack, formal in Mail."
         }
     }
 
     var promptFileName: String {
         switch self {
+        case .raw: ""  // never read; callers gate on requiresLLM first
         case .light: "light_rewrite"
         case .moderate: "moderate_rewrite"
         case .heavy: "heavy_rewrite"
@@ -101,9 +114,10 @@ enum RewriteLevel: String, CaseIterable, Codable {
 
     var next: RewriteLevel {
         switch self {
+        case .raw: .light
         case .light: .moderate
         case .moderate: .heavy
-        case .heavy: .light
+        case .heavy: .raw
         }
     }
 }
@@ -114,46 +128,25 @@ enum PlaybackBehavior: String, CaseIterable, Codable {
     case doNothing = "Do nothing"
 }
 
+// Provider type enums collapsed to single cases. The fully-local backend
+// has exactly one transcription engine (WhisperKit) and one rewrite engine
+// (the active local LLM via MLX). They remain as types so existing UI bindings
+// don't have to be rewritten in step 11.
+
 enum TranscriptionProviderType: String, CaseIterable, Codable, Identifiable {
-    case deepgram = "Deepgram"
-    case whisper = "OpenAI Whisper"
+    case whisperKit = "WhisperKit"
 
     var id: String { rawValue }
 
-    var iconName: String {
-        switch self {
-        case .deepgram: "waveform"
-        case .whisper: "brain.head.profile"
-        }
-    }
-
-    var keychainKey: String {
-        switch self {
-        case .deepgram: "deepgram_api_key"
-        case .whisper: "openai_api_key"
-        }
-    }
+    var iconName: String { "waveform.circle" }
 }
 
 enum RewriteProviderType: String, CaseIterable, Codable, Identifiable {
-    case claude = "Claude"
-    case gpt = "GPT"
+    case localLLM = "Local LLM"
 
     var id: String { rawValue }
 
-    var iconName: String {
-        switch self {
-        case .claude: "sparkles"
-        case .gpt: "brain"
-        }
-    }
-
-    var keychainKey: String {
-        switch self {
-        case .claude: "anthropic_api_key"
-        case .gpt: "openai_api_key"
-        }
-    }
+    var iconName: String { "cpu" }
 }
 
 enum OverlayStyle: String, CaseIterable, Codable {

@@ -13,21 +13,38 @@ final class RecordingCoordinator: @unchecked Sendable {
     // MARK: - Dependencies
     let audioEngine = AudioCaptureEngine()
     let levelMonitor = AudioLevelMonitor()
-    nonisolated(unsafe) let silenceDetector = SilenceDetector()
     let timeLimiter = RecordingTimeLimiter()
     nonisolated(unsafe) let clipboardManager = ClipboardManager()
     nonisolated(unsafe) let activeAppDetector = ActiveAppDetector()
     nonisolated(unsafe) let mediaController = MediaPlaybackController()
-    nonisolated(unsafe) let transcriptionService = TranscriptionService()
-    nonisolated(unsafe) let rewriteService = RewriteService()
+    nonisolated let localAI = LocalAIEngine()
 
     // MARK: - Settings (injected from AppState)
-    var rewriteLevel: RewriteLevel = .moderate
-    var transcriptionProvider: TranscriptionProviderType = .whisper
-    var rewriteProvider: RewriteProviderType = .claude
+    var rewriteLevel: RewriteLevel = .raw {
+        didSet {
+            guard rewriteLevel != oldValue else { return }
+            // Lazy LLM load: switching INTO any non-Raw mode triggers a download
+            // (if needed) and parks the model in memory. Switching back to Raw
+            // does nothing here — the idle watcher will eventually unload.
+            if rewriteLevel.requiresLLM {
+                Task { [localAI, selectedLocalLLMModelId] in
+                    try? await localAI.setActiveLLM(id: selectedLocalLLMModelId)
+                }
+            }
+        }
+    }
     var soundEffectsEnabled: Bool = true
     var soundEffectsVolume: Float = 0.7 { didSet { chime.volume = soundEffectsVolume } }
     var playbackBehavior: PlaybackBehavior = .pause
+    var selectedLocalLLMModelId: String = LocalLLMRegistry.defaultModelId {
+        didSet {
+            guard selectedLocalLLMModelId != oldValue else { return }
+            Task { try? await localAI.setActiveLLM(id: selectedLocalLLMModelId) }
+        }
+    }
+    var llmIdleTimeoutSeconds: TimeInterval? = 300 {
+        didSet { Task { await localAI.setIdleTimeout(llmIdleTimeoutSeconds) } }
+    }
 
     // MARK: - Overlay & Hotkey
     var overlayController: OverlayWindowController?
@@ -39,14 +56,14 @@ final class RecordingCoordinator: @unchecked Sendable {
     private var prefetchedDictionary: [DictionaryEntry] = []
     private var prefetchedSnippets: [Snippet] = []
     private var prefetchedContext: RewriteContext?
+    private var prefetchTask: Task<Void, Never>?
 
     // MARK: - Sound
     private let chime = ChimeSynthesizer()
 
     init() {
         setupAudioCallbacks()
-        setupSilenceDetection()
-        setupAIProviders()
+        setupSpeechEndDetection()
     }
 
     // MARK: - Public Actions
@@ -69,7 +86,6 @@ final class RecordingCoordinator: @unchecked Sendable {
         audioEngine.stop()
         audioEngine.clearBuffers()
         timeLimiter.stop()
-        silenceDetector.reset()
         levelMonitor.reset()
         overlayController?.hide()
         mediaController.handleRecordingEnd(behavior: playbackBehavior)
@@ -115,15 +131,16 @@ final class RecordingCoordinator: @unchecked Sendable {
         // Start audio capture
         audioEngine.start()
         timeLimiter.start()
-        silenceDetector.reset()
         lastError = nil
 
         state = .recording
 
         // Pre-fetch rewrite context while user is still talking
-        Task { @MainActor in
+        prefetchTask = Task { @MainActor in
+            guard !Task.isCancelled else { return }
             self.prefetchedDictionary = (try? DatabaseManager.shared.fetchDictionaryEntries()) ?? []
             self.prefetchedSnippets = (try? DatabaseManager.shared.fetchSnippets()) ?? []
+            guard !Task.isCancelled else { return }
             self.prefetchedContext = RewriteContext(
                 activeAppName: self.activeAppDetector.capturedAppName,
                 rewriteLevel: self.rewriteLevel,
@@ -151,7 +168,6 @@ final class RecordingCoordinator: @unchecked Sendable {
         // Stop capture
         audioEngine.stop()
         timeLimiter.stop()
-        silenceDetector.reset()
         levelMonitor.reset()
 
         // Resume media immediately when recording stops
@@ -167,22 +183,20 @@ final class RecordingCoordinator: @unchecked Sendable {
         let startTime = CFAbsoluteTimeGetCurrent()
 
         do {
-            // 1. Convert audio to WAV (fast, in-memory)
-            let audioData = audioEngine.getAccumulatedWAVData()
+            // 1. Pull resampled 16 kHz mono Float samples from the capture engine
+            //    (no WAV round-trip — VAD already saw real-time audio).
+            let samples = audioEngine.getResampledSamples()
             audioEngine.clearBuffers()
 
             let convertTime = CFAbsoluteTimeGetCurrent()
-            print("[Wave] Audio: \(audioData.count) bytes (\(Int((convertTime - startTime) * 1000))ms)")
+            print("[Wave] Audio: \(samples.count) samples (\(Int((convertTime - startTime) * 1000))ms)")
 
-            guard audioData.count > 44 else {
+            guard samples.count > 1600 else {  // <0.1s of audio at 16kHz — discard
                 state = .idle
                 return
             }
 
-            // 2. Don't re-activate any app — paste into whatever app
-            //    has focus when processing finishes (user may have switched)
-
-            // 3. Transcribe — use pre-fetched context from recording phase
+            // 2. Build rewrite context from prefetched data or fall back to a fresh fetch.
             let context = prefetchedContext ?? RewriteContext(
                 activeAppName: activeAppDetector.capturedAppName,
                 rewriteLevel: rewriteLevel,
@@ -190,10 +204,8 @@ final class RecordingCoordinator: @unchecked Sendable {
                 suggestedTone: activeAppDetector.suggestedTone
             )
 
-            let rawTranscript = try await transcriptionService.transcribe(
-                audioData: audioData,
-                using: transcriptionProvider
-            )
+            // 3. Transcribe via LocalAIEngine → WhisperKit
+            let rawTranscript = try await localAI.transcribe(samples: samples)
 
             let transcribeTime = CFAbsoluteTimeGetCurrent()
             print("[Wave] Transcribed: \"\(rawTranscript)\" (\(Int((transcribeTime - convertTime) * 1000))ms)")
@@ -226,25 +238,31 @@ final class RecordingCoordinator: @unchecked Sendable {
                 print("[Wave] Snippet exact match — skipping LLM (\(Int((rewriteTime - transcribeTime) * 1000))ms)")
 
             case .partialMatch(let expandedText):
-                // Trigger phrase found within sentence — replace and send to LLM
-                print("[Wave] Snippet partial match — sending expanded text to LLM")
-                cleanedText = try await rewriteService.rewrite(
-                    text: expandedText,
-                    context: context,
-                    using: rewriteProvider
-                )
-                rewriteTime = CFAbsoluteTimeGetCurrent()
-                print("[Wave] Rewritten: \"\(cleanedText)\" (\(Int((rewriteTime - transcribeTime) * 1000))ms)")
+                if rewriteLevel.requiresLLM {
+                    // Trigger phrase found within sentence — replace and send to LLM
+                    print("[Wave] Snippet partial match — sending expanded text to LLM")
+                    cleanedText = try await localAI.rewrite(text: expandedText, context: context)
+                    rewriteTime = CFAbsoluteTimeGetCurrent()
+                    print("[Wave] Rewritten: \"\(cleanedText)\" (\(Int((rewriteTime - transcribeTime) * 1000))ms)")
+                } else {
+                    // Raw mode — paste expanded snippet text without LLM cleanup
+                    cleanedText = expandedText
+                    rewriteTime = CFAbsoluteTimeGetCurrent()
+                    print("[Wave] Snippet partial match — Raw mode, no LLM (\(Int((rewriteTime - transcribeTime) * 1000))ms)")
+                }
 
             case .noMatch:
-                // No snippets — normal LLM rewrite
-                cleanedText = try await rewriteService.rewrite(
-                    text: rawTranscript,
-                    context: context,
-                    using: rewriteProvider
-                )
-                rewriteTime = CFAbsoluteTimeGetCurrent()
-                print("[Wave] Rewritten: \"\(cleanedText)\" (\(Int((rewriteTime - transcribeTime) * 1000))ms)")
+                if rewriteLevel.requiresLLM {
+                    // No snippets — normal LLM rewrite
+                    cleanedText = try await localAI.rewrite(text: rawTranscript, context: context)
+                    rewriteTime = CFAbsoluteTimeGetCurrent()
+                    print("[Wave] Rewritten: \"\(cleanedText)\" (\(Int((rewriteTime - transcribeTime) * 1000))ms)")
+                } else {
+                    // Raw mode — paste the transcript verbatim
+                    cleanedText = rawTranscript
+                    rewriteTime = CFAbsoluteTimeGetCurrent()
+                    print("[Wave] Raw mode — pasting transcript directly (\(Int((rewriteTime - transcribeTime) * 1000))ms)")
+                }
             }
 
             // 5. Paste immediately (app should already have focus from step 2)
@@ -256,13 +274,19 @@ final class RecordingCoordinator: @unchecked Sendable {
             print("[Wave] Total pipeline: \(Int((pasteTime - startTime) * 1000))ms")
 
             // 6. Save history in background (don't block the paste)
+            let languageModelLabel: String
+            if rewriteLevel.requiresLLM {
+                languageModelLabel = LocalLLMRegistry.find(id: selectedLocalLLMModelId)?.displayName ?? selectedLocalLLMModelId
+            } else {
+                languageModelLabel = "(none — Raw)"
+            }
             let entry = HistoryEntry(
                 rawTranscript: rawTranscript,
                 cleanedText: cleanedText,
                 rewriteLevel: rewriteLevel.rawValue,
                 sourceApp: activeAppDetector.capturedAppName,
-                voiceModel: transcriptionProvider.rawValue,
-                languageModel: rewriteProvider.rawValue,
+                voiceModel: "WhisperKit",
+                languageModel: languageModelLabel,
                 durationSeconds: timeLimiter.elapsedSeconds,
                 wordCount: cleanedText.split(separator: " ").count
             )
@@ -285,47 +309,43 @@ final class RecordingCoordinator: @unchecked Sendable {
     private func setupAudioCallbacks() {
         audioEngine.onAudioLevel = { [weak self] level in
             self?.levelMonitor.update(with: level)
-            self?.silenceDetector.update(with: level)
         }
     }
 
-    private func setupSilenceDetection() {
-        silenceDetector.onSilenceDetected = { [weak self] in
-            DispatchQueue.main.async { [weak self] in
-                self?.stopRecording()
-            }
+    private func setupSpeechEndDetection() {
+        audioEngine.onSpeechEnded = { [weak self] in
+            // Already on main; AudioCaptureEngine.handleVAD is @MainActor.
+            self?.stopRecording()
         }
     }
 
-    nonisolated(unsafe) private let whisperKitProvider = WhisperKitProvider()
-
-    private func setupAIProviders() {
-        transcriptionService.registerProvider(DeepgramProvider())
-        transcriptionService.registerProvider(whisperKitProvider)
-        rewriteService.registerProvider(ClaudeProvider())
-        rewriteService.registerProvider(GPTProvider())
-    }
-
-    /// Pre-initialize WhisperKit model so first transcription is fast
+    /// Preload WhisperKit + (optionally) the active local LLM, plus the Silero
+    /// VAD model. Run during app startup. The LLM is only preloaded when the
+    /// saved mode actually needs it — Raw users never trigger a download.
     func preloadWhisperModel(appState: AppState? = nil) {
-        Task {
-            do {
-                try await whisperKitProvider.initialize()
-                appState?.isWhisperKitReady = true
-                appState?.whisperKitError = nil
-            } catch {
-                print("[Wave] WhisperKit preload failed: \(error)")
-                appState?.whisperKitError = error.localizedDescription
-                appState?.isWhisperKitReady = false
+        Task { [audioEngine, localAI] in
+            await audioEngine.prepareVAD()
+            await localAI.startIdleWatcher()
+            await localAI.setIdleTimeout(self.llmIdleTimeoutSeconds)
+            // Skip LLM preload entirely in Raw mode — the user may never want
+            // a 2 GB download.
+            let llmIdToPreload: String? = self.rewriteLevel.requiresLLM ? self.selectedLocalLLMModelId : nil
+            await localAI.preloadActiveModels(activeLLMId: llmIdToPreload)
+            let ready = await localAI.whisperReady
+            await MainActor.run {
+                appState?.isWhisperKitReady = ready
+                appState?.whisperKitError = ready ? nil : "WhisperKit failed to load"
             }
         }
     }
 
     func clearWhisperKitCache() {
-        whisperKitProvider.clearCacheAndReset()
+        Task { await localAI.clearWhisperKitCache() }
     }
 
     private func clearPrefetchedData() {
+        prefetchTask?.cancel()
+        prefetchTask = nil
         prefetchedDictionary = []
         prefetchedSnippets = []
         prefetchedContext = nil

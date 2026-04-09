@@ -48,3 +48,6 @@ Models/
 *.dmg
 *.app
 *.zip
+
+# Git worktrees
+.worktrees/

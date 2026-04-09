@@ -1,9 +1,7 @@
 import SwiftUI
 
 final class UserPreferences {
-    @AppStorage("rewriteLevel") var rewriteLevel: String = RewriteLevel.moderate.rawValue
-    @AppStorage("transcriptionProvider") var transcriptionProvider: String = TranscriptionProviderType.deepgram.rawValue
-    @AppStorage("rewriteProvider") var rewriteProvider: String = RewriteProviderType.claude.rawValue
+    @AppStorage("rewriteLevel") var rewriteLevel: String = RewriteLevel.raw.rawValue
     @AppStorage("overlayStyle") var overlayStyle: String = OverlayStyle.full.rawValue
     @AppStorage("silenceTimeout") var silenceTimeout: Double = 3.0
     @AppStorage("soundEffectsEnabled") var soundEffectsEnabled: Bool = true
@@ -14,4 +12,10 @@ final class UserPreferences {
     @AppStorage("hasCompletedSetup") var hasCompletedSetup: Bool = false
     @AppStorage("launchAtLogin") var launchAtLogin: Bool = false
     @AppStorage("overlayPositionY") var overlayPositionY: Double = 10 // px above dock
+
+    // Local LLM selection (Wave-side id from `LocalLLMRegistry.all`)
+    @AppStorage("selectedLocalLLMModelId") var selectedLocalLLMModelId: String = ""
+
+    // Idle-unload timeout in seconds. -1 = never. 0 = unload immediately.
+    @AppStorage("llmIdleTimeoutSeconds") var llmIdleTimeoutSecondsRaw: Int = 300
 }

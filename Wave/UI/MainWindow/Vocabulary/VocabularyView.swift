@@ -83,7 +83,7 @@ struct VocabularyView: View {
                 .frame(height: 200)
             } else {
                 VStack(spacing: WaveTheme.spacingXS) {
-                    ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                    ForEach(entries, id: \.id) { entry in
                         VocabularyEntryCard(entry: entry) {
                             deleteEntry(id: entry.id)
                         }

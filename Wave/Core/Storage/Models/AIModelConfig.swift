@@ -14,23 +14,12 @@ struct AIModelConfig: Identifiable, Codable, Equatable, Hashable {
         case language = "Language"
     }
 
-    init(id: String = UUID().uuidString, name: String, provider: String, modelType: ModelType, description: String, isFavorite: Bool = false) {
-        self.id = id
-        self.name = name
-        self.provider = provider
-        self.modelType = modelType
-        self.description = description
-        self.isFavorite = isFavorite
-    }
-
     // MARK: - Provider Display (single source of truth)
 
     var providerIconName: String {
         switch provider {
-        case "Anthropic": return "anthropic_icon"
-        case "OpenAI": return "openai_icon"
-        case "Deepgram": return "deepgram_icon"
-        case "Google": return "google_icon"
+        case "WhisperKit": return "whisperkit_icon"
+        case "MLX": return "mlx_icon"
         default: return "cpu"
         }
     }
@@ -38,52 +27,87 @@ struct AIModelConfig: Identifiable, Codable, Equatable, Hashable {
     /// Fallback SF Symbol when asset isn't bundled
     var providerSystemIcon: String {
         switch provider {
-        case "Anthropic": return "triangle.fill"
-        case "OpenAI": return "circle.hexagongrid"
-        case "Deepgram": return "waveform.circle"
-        case "Google": return "sparkle"
+        case "WhisperKit": return "waveform.circle"
+        case "MLX": return "cpu"
         default: return "cpu"
         }
     }
 
     var providerColor: Color {
         switch provider {
-        case "Anthropic": return .orange
-        case "OpenAI": return .green
-        case "Deepgram": return .blue
-        case "Google": return .cyan
+        case "WhisperKit": return .blue
+        case "MLX": return .teal
         default: return .gray
         }
     }
 
     var transcriptionProvider: TranscriptionProviderType? {
         switch name {
-        case "Deepgram Nova-2": return .deepgram
-        case "Whisper Large V3": return .whisper
+        case "WhisperKit (Local)": return .whisperKit
         default: return nil
         }
     }
 
     var rewriteProvider: RewriteProviderType? {
-        switch name {
-        case "Claude Sonnet 4.6", "Claude Haiku 4.5": return .claude
-        case "GPT-4o", "GPT-4o Mini": return .gpt
-        default: return nil
-        }
+        // All language entries are local LLMs in the Wave-side LocalLLMRegistry.
+        // Card activation looks them up by Wave-side id, not by provider type.
+        modelType == .language ? .localLLM : nil
     }
 
-    static let defaultModels: [AIModelConfig] = [
-        // Voice models
-        AIModelConfig(name: "Deepgram Nova-2", provider: "Deepgram", modelType: .voice, description: "High accuracy streaming speech recognition with low latency."),
-        AIModelConfig(name: "Whisper Large V3", provider: "OpenAI", modelType: .voice, description: "Most accurate batch transcription model. Supports 100+ languages."),
+    /// Wave-side `LocalLLMEntry.id` for language models. Used by ModelsLibraryView
+    /// to wire each card to its install / activate / delete actions.
+    var localLLMId: String? {
+        guard modelType == .language else { return nil }
+        return LocalLLMRegistry.find(huggingFaceId: huggingFaceId ?? "")?.id
+    }
 
-        // Language models
-        AIModelConfig(name: "Claude Sonnet 4.6", provider: "Anthropic", modelType: .language, description: "Latest Claude model with excellent writing quality and instruction following."),
-        AIModelConfig(name: "Claude Haiku 4.5", provider: "Anthropic", modelType: .language, description: "Fast and cost-effective Claude model for quick text cleanup."),
-        AIModelConfig(name: "GPT-4o", provider: "OpenAI", modelType: .language, description: "OpenAI's most capable model for text rewriting and cleanup."),
-        AIModelConfig(name: "GPT-4o Mini", provider: "OpenAI", modelType: .language, description: "Fast, affordable OpenAI model for lightweight text cleanup."),
-        AIModelConfig(name: "Gemini 2.5 Flash", provider: "Google", modelType: .language, description: "Google's fast and cost-efficient model for quick text cleanup."),
-    ]
+    /// HuggingFace repo id for language models, e.g. `mlx-community/Llama-3.2-3B-Instruct-4bit`.
+    var huggingFaceId: String? = nil
+
+    init(
+        id: String = UUID().uuidString,
+        name: String,
+        provider: String,
+        modelType: ModelType,
+        description: String,
+        isFavorite: Bool = false,
+        huggingFaceId: String? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.provider = provider
+        self.modelType = modelType
+        self.description = description
+        self.isFavorite = isFavorite
+        self.huggingFaceId = huggingFaceId
+    }
+
+    /// The catalog shown in `ModelsLibraryView`. Voice = WhisperKit (always
+    /// installed). Language = the curated `LocalLLMRegistry` lineup, mapped 1:1
+    /// so the existing UI shape is preserved.
+    static var defaultModels: [AIModelConfig] {
+        var models: [AIModelConfig] = [
+            AIModelConfig(
+                name: "WhisperKit (Local)",
+                provider: "WhisperKit",
+                modelType: .voice,
+                description: "On-device speech recognition. Runs entirely on your Mac. No network required."
+            ),
+        ]
+
+        for entry in LocalLLMRegistry.all {
+            models.append(
+                AIModelConfig(
+                    name: entry.displayName,
+                    provider: "MLX",
+                    modelType: .language,
+                    description: entry.description,
+                    huggingFaceId: entry.huggingFaceId
+                )
+            )
+        }
+        return models
+    }
 }
 
 // MARK: - Provider Icon View (tries asset, falls back to SF Symbol)

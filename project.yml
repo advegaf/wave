@@ -29,6 +29,20 @@ packages:
   WhisperKit:
     url: https://github.com/argmaxinc/WhisperKit
     from: "0.9.0"
+  # Pinned to versions compatible with WhisperKit's swift-transformers <1.2.0 constraint.
+  # When WhisperKit upgrades, bump these together.
+  MLXSwift:
+    url: https://github.com/ml-explore/mlx-swift
+    minVersion: "0.30.6"
+    maxVersion: "0.31.0"
+  MLXSwiftLM:
+    url: https://github.com/ml-explore/mlx-swift-lm
+    exactVersion: "2.30.6"
+  # Silero VAD CoreML wrapper. Provides VadManager actor with streaming API,
+  # hysteresis, and auto-download of the Silero v6 unified model.
+  FluidAudio:
+    url: https://github.com/FluidInference/FluidAudio
+    from: "0.13.0"
 
 targets:
   Wave:
@@ -56,6 +70,18 @@ targets:
       - package: KeychainAccess
       - package: LaunchAtLogin
       - package: WhisperKit
+      - package: MLXSwift
+        product: MLX
+      - package: MLXSwift
+        product: MLXNN
+      - package: MLXSwift
+        product: MLXRandom
+      - package: MLXSwiftLM
+        product: MLXLLM
+      - package: MLXSwiftLM
+        product: MLXLMCommon
+      - package: FluidAudio
+        product: FluidAudio
     entitlements:
       path: Wave/Wave.entitlements
       properties:

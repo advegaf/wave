@@ -157,24 +157,21 @@ struct ModelsLibraryView: View {
     // MARK: - Model Selection
 
     private func isModelActive(_ model: AIModelConfig) -> Bool {
-        if let tp = model.transcriptionProvider {
-            return appState.selectedTranscriptionProvider == tp
-        }
-        if let rp = model.rewriteProvider {
-            return appState.selectedRewriteProvider == rp
+        // WhisperKit voice model is the only one and is always implicitly active.
+        if model.modelType == .voice { return true }
+        // Language models are active when their LocalLLM id matches the
+        // user's selected id in AppState.
+        if let id = model.localLLMId {
+            return appState.selectedLocalLLMModelId == id
         }
         return false
     }
 
     private func activateModel(_ model: AIModelConfig) {
-        if let tp = model.transcriptionProvider {
-            appState.selectedTranscriptionProvider = tp
-            appState.saveToPreferences()
-        }
-        if let rp = model.rewriteProvider {
-            appState.selectedRewriteProvider = rp
-            appState.saveToPreferences()
-        }
+        guard let id = model.localLLMId else { return }
+        appState.selectedLocalLLMModelId = id
+        appState.saveToPreferences()
+        coordinator.selectedLocalLLMModelId = id
     }
 
     // MARK: - Model Section
@@ -317,30 +314,11 @@ struct ModelDetailSheet: View {
         .onAppear { loadExistingKey() }
     }
 
-    private func loadExistingKey() {
-        switch model.provider {
-        case "OpenAI":
-            apiKey = (try? KeychainManager.shared.getOpenAIKey()) ?? ""
-        case "Anthropic":
-            apiKey = (try? KeychainManager.shared.getAnthropicKey()) ?? ""
-        case "Deepgram":
-            apiKey = (try? KeychainManager.shared.getDeepgramKey()) ?? ""
-        default:
-            break
-        }
-    }
-
+    // API key management is gone with cloud providers. ModelDetailSheet
+    // gets a full rewrite in step 11 — these stubs only exist so the file
+    // compiles during the in-progress refactor.
+    private func loadExistingKey() {}
     private func saveApiKey() {
-        switch model.provider {
-        case "OpenAI":
-            try? KeychainManager.shared.setOpenAIKey(apiKey)
-        case "Anthropic":
-            try? KeychainManager.shared.setAnthropicKey(apiKey)
-        case "Deepgram":
-            try? KeychainManager.shared.setDeepgramKey(apiKey)
-        default:
-            break
-        }
         saved = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { saved = false }
     }

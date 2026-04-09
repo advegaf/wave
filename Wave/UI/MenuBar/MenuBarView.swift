@@ -55,7 +55,7 @@ struct MenuBarView: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 200)
+                .frame(maxWidth: .infinity)
             }
             .padding(.horizontal, WaveTheme.spacingMD)
             .padding(.vertical, WaveTheme.spacingSM)
@@ -135,7 +135,7 @@ struct MenuBarView: View {
             .padding(.horizontal, WaveTheme.spacingMD)
             .padding(.vertical, WaveTheme.spacingSM)
         }
-        .frame(width: 300)
+        .frame(width: 340)
     }
 
     private var statusColor: Color {

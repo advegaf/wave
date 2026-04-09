@@ -1,25 +1,37 @@
 import Foundation
 
 struct PromptBuilder {
-    nonisolated(unsafe) private static var templateCache: [String: String] = [:]
+    private static let templates: [String: String] = {
+        var cache: [String: String] = [:]
+        for level in ["light_rewrite", "moderate_rewrite", "heavy_rewrite"] {
+            if let url = Bundle.main.url(forResource: level, withExtension: "txt", subdirectory: "DefaultPrompts"),
+               let content = try? String(contentsOf: url, encoding: .utf8) {
+                cache[level] = content
+            }
+        }
+        return cache
+    }()
 
-    static func buildSystemPrompt(for context: RewriteContext) -> String {
-        let templateName = context.rewriteLevel.promptFileName
-
-        let template: String
-        if let cached = templateCache[templateName] {
-            template = cached
-        } else if let url = Bundle.main.url(forResource: templateName, withExtension: "txt", subdirectory: "DefaultPrompts"),
-                  let loaded = try? String(contentsOf: url, encoding: .utf8) {
-            templateCache[templateName] = loaded
-            template = loaded
-        } else {
-            return fallbackPrompt(for: context)
+    /// Build a fully-substituted **completion prompt** for the given mode and
+    /// transcription. The returned string is the entire prompt the model sees
+    /// (system rules + few-shot examples + the actual transcription + an
+    /// `Output:` suffix). `MLXLLMRewriter` wraps this in the model's chat
+    /// template as a single user message.
+    ///
+    /// Substitutions performed: `{{APP_NAME}}`, `{{DICTIONARY_CONTEXT}}`,
+    /// `{{TRANSCRIPTION}}`.
+    static func buildCompletionPrompt(for context: RewriteContext, transcription: String) -> String {
+        guard let template = templates[context.rewriteLevel.promptFileName] else {
+            return fallbackCompletionPrompt(for: context, transcription: transcription)
         }
 
         var result = template
         result = result.replacingOccurrences(of: "{{APP_NAME}}", with: context.activeAppName)
-        result = result.replacingOccurrences(of: "{{DICTIONARY_CONTEXT}}", with: buildDictionaryContext(from: context.customDictionary))
+        result = result.replacingOccurrences(
+            of: "{{DICTIONARY_CONTEXT}}",
+            with: buildDictionaryContext(from: context.customDictionary)
+        )
+        result = result.replacingOccurrences(of: "{{TRANSCRIPTION}}", with: transcription)
         return result
     }
 
@@ -28,7 +40,7 @@ struct PromptBuilder {
             return ""
         }
 
-        var lines = ["The following are correct spellings and terms the user has defined:"]
+        var lines = ["Correct spellings and terms the user has defined (apply when relevant):"]
 
         for entry in entries {
             if let replacement = entry.replacement {
@@ -41,16 +53,15 @@ struct PromptBuilder {
         return lines.joined(separator: "\n")
     }
 
-    private static func fallbackPrompt(for context: RewriteContext) -> String {
+    private static func fallbackCompletionPrompt(for context: RewriteContext, transcription: String) -> String {
         """
-        You are a dictation cleanup assistant. The user dictated the following text while using \(context.activeAppName).
-
-        Clean it at a \(context.rewriteLevel.rawValue.lowercased()) level. Remove filler words, fix grammar, \
-        and make it read naturally. The tone should be \(context.suggestedTone).
+        You are a text-cleanup tool, not a chatbot. Clean the dictated text below.
+        Remove fillers, fix grammar. Output ONLY the cleaned text. Never reply conversationally.
 
         \(buildDictionaryContext(from: context.customDictionary))
 
-        Return ONLY the cleaned text. No explanations, no quotes, no markdown.
+        Input: \(transcription)
+        Output:
         """
     }
 }

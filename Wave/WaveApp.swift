@@ -32,8 +32,8 @@ struct WaveApp: App {
             .onChange(of: appState.overlayStyle) { syncCoordinatorSettings() }
             .onChange(of: appState.overlayPositionY) { syncCoordinatorSettings() }
             .onChange(of: appState.selectedRewriteLevel) { syncCoordinatorSettings() }
-            .onChange(of: appState.selectedTranscriptionProvider) { syncCoordinatorSettings() }
-            .onChange(of: appState.selectedRewriteProvider) { syncCoordinatorSettings() }
+            .onChange(of: appState.selectedLocalLLMModelId) { syncCoordinatorSettings() }
+            .onChange(of: appState.llmIdleTimeoutSeconds) { syncCoordinatorSettings() }
             .onChange(of: appState.soundEffectsEnabled) { syncCoordinatorSettings() }
             .onChange(of: appState.soundEffectsVolume) { syncCoordinatorSettings() }
             .onChange(of: appState.playbackBehavior) { syncCoordinatorSettings() }
@@ -84,9 +84,9 @@ struct WaveApp: App {
     }
 
     private func syncCoordinatorSettings() {
-        coordinator.transcriptionProvider = appState.selectedTranscriptionProvider
-        coordinator.rewriteProvider = appState.selectedRewriteProvider
         coordinator.rewriteLevel = appState.selectedRewriteLevel
+        coordinator.selectedLocalLLMModelId = appState.selectedLocalLLMModelId
+        coordinator.llmIdleTimeoutSeconds = appState.llmIdleTimeoutSeconds
         coordinator.soundEffectsEnabled = appState.soundEffectsEnabled
         coordinator.soundEffectsVolume = appState.soundEffectsVolume
         coordinator.playbackBehavior = appState.playbackBehavior

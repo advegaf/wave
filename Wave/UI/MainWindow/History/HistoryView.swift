@@ -46,7 +46,7 @@ struct HistoryView: View {
 
                     ForEach(grouped.keys.sorted(by: >), id: \.self) { date in
                         Section {
-                            ForEach(Array((grouped[date] ?? []).enumerated()), id: \.element.id) { index, entry in
+                            ForEach(grouped[date] ?? [], id: \.id) { entry in
                                 HistoryEntryCard(entry: entry)
                             }
                         } header: {

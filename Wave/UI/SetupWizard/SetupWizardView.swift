@@ -4,14 +4,13 @@ import WhisperKit
 struct SetupWizardView: View {
     @Bindable var appState: AppState
     @State private var currentStep = 0
-    @State private var anthropicKey = ""
     // Model download state
     @State private var isDownloadingModel = false
     @State private var modelDownloaded = false
     @State private var modelError: String?
     @State private var downloadStatus = "Preparing..."
 
-    let totalSteps = 3
+    let totalSteps = 2
 
     var body: some View {
         VStack(spacing: 0) {
@@ -31,8 +30,7 @@ struct SetupWizardView: View {
             Group {
                 switch currentStep {
                 case 0: welcomeStep
-                case 1: apiKeyStep
-                case 2: modelAndFinishStep
+                case 1: modelAndFinishStep
                 default: EmptyView()
                 }
             }
@@ -42,7 +40,7 @@ struct SetupWizardView: View {
 
             // Navigation
             HStack {
-                if currentStep > 0 && currentStep < 2 {
+                if currentStep == 1 && !modelDownloaded {
                     Button("Back") {
                         withAnimation(.easeOut(duration: 0.2)) { currentStep -= 1 }
                     }
@@ -52,7 +50,7 @@ struct SetupWizardView: View {
 
                 Spacer()
 
-                if currentStep == 2 {
+                if currentStep == 1 {
                     if modelDownloaded {
                         Button("Get Started") { saveAndFinish() }
                             .buttonStyle(.borderedProminent)
@@ -119,33 +117,7 @@ struct SetupWizardView: View {
         }
     }
 
-    // MARK: - Step 1: API Key
-
-    private var apiKeyStep: some View {
-        VStack(alignment: .leading, spacing: WaveTheme.spacingXL) {
-            VStack(alignment: .leading, spacing: WaveTheme.spacingSM) {
-                Text("Enter your API key")
-                    .font(.system(size: 24, weight: .bold))
-
-                Text("Wave uses Claude for text cleanup. You can add more providers later in the Models Library.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(WaveTheme.textSecondary)
-            }
-
-            VStack(alignment: .leading, spacing: WaveTheme.spacingXS) {
-                Text("Anthropic API Key")
-                    .font(.system(size: 12, weight: .medium))
-                Text("Used for Claude text cleanup")
-                    .font(.system(size: 11))
-                    .foregroundStyle(WaveTheme.textTertiary)
-                SecureField("sk-ant-...", text: $anthropicKey)
-                    .textFieldStyle(.roundedBorder)
-            }
-            .cardStyle()
-        }
-    }
-
-    // MARK: - Step 2: Model Download + Finish
+    // MARK: - Step 1: Model Download + Finish
 
     private var modelAndFinishStep: some View {
         VStack(spacing: WaveTheme.spacingLG) {
@@ -230,12 +202,6 @@ struct SetupWizardView: View {
     // MARK: - Save
 
     private func saveAndFinish() {
-        if !anthropicKey.isEmpty {
-            try? KeychainManager.shared.setAnthropicKey(anthropicKey)
-        }
-
-        appState.selectedTranscriptionProvider = .whisper
-        appState.selectedRewriteProvider = .claude
         appState.hasCompletedSetup = true
         appState.saveToPreferences()
     }
