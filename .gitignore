@@ -41,8 +41,9 @@ Package.resolved
 *.key
 *.pem
 
-# WhisperKit models (downloaded at runtime)
-Models/
+# WhisperKit models (downloaded at runtime) — scoped to project root so it
+# doesn't accidentally match `Wave/Core/Storage/Models/` which holds source.
+/Models/
 
 # Build artifacts
 *.dmg
