@@ -1,68 +1,202 @@
+// Wave/UI/Theme/WaveTheme.swift
 import SwiftUI
+import AppKit
 
-enum WaveTheme {
-    // MARK: - Colors
-    static let background = Color(nsColor: NSColor(red: 0.10, green: 0.10, blue: 0.10, alpha: 1.0))      // #1A1A1A
-    static let surfacePrimary = Color(nsColor: NSColor(red: 0.14, green: 0.14, blue: 0.14, alpha: 1.0))   // #242424
-    static let surfaceSecondary = Color(nsColor: NSColor(red: 0.17, green: 0.17, blue: 0.17, alpha: 1.0)) // #2A2A2A
-    static let surfaceHover = Color(nsColor: NSColor(red: 0.20, green: 0.20, blue: 0.20, alpha: 1.0))     // #333333
-    static let border = Color(nsColor: NSColor(red: 0.22, green: 0.22, blue: 0.22, alpha: 1.0))           // #383838
-
-    static let textPrimary = Color.white
-    static let textSecondary = Color(nsColor: NSColor(red: 0.60, green: 0.60, blue: 0.60, alpha: 1.0))
-    static let textTertiary = Color(nsColor: NSColor(red: 0.40, green: 0.40, blue: 0.40, alpha: 1.0))
-
-    static let accent = Color.blue
-    static let destructive = Color.red
-    static let glowColor = Color.white.opacity(0.03)
-
-    // MARK: - Spacing
-    static let spacingXS: CGFloat = 4
-    static let spacingSM: CGFloat = 8
-    static let spacingMD: CGFloat = 12
-    static let spacingLG: CGFloat = 16
-    static let spacingXL: CGFloat = 24
-    static let spacingXXL: CGFloat = 32
-
-    // MARK: - Corner Radius
-    static let radiusSM: CGFloat = 6
-    static let radiusMD: CGFloat = 10
-    static let radiusLG: CGFloat = 14
-    static let radiusInner: CGFloat = 6 // For nested elements inside cards (concentric: outer - padding/gap)
-
-    // MARK: - Window
-    static let sidebarWidth: CGFloat = 200
-    static let windowWidth: CGFloat = 714
-    static let windowHeight: CGFloat = 480
+/// Namespaced design tokens for Wave's Notion-inspired UI. Every view reads
+/// from `Wave.colors`, `Wave.spacing`, `Wave.radius`, `Wave.font`, or
+/// `Wave.shadow` — never from hardcoded values.
+enum Wave {
+    enum colors {}
+    enum spacing {}
+    enum radius {}
+    enum font {}
+    enum shadow {}
 }
 
-// MARK: - View Modifiers
+// MARK: - Colors (adaptive light + dark)
 
+extension Wave.colors {
+    /// Build an adaptive Color that picks different values per appearance.
+    /// Uses an NSColor dynamic provider so appearance changes re-render live.
+    static func adaptive(light: NSColor, dark: NSColor) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            if appearance.bestMatch(from: [.darkAqua, .vibrantDark, .accessibilityHighContrastDarkAqua, .accessibilityHighContrastVibrantDark]) != nil {
+                return dark
+            }
+            return light
+        })
+    }
+
+    // Surfaces
+    static let background        = adaptive(light: .white,                    dark: NSColor(red: 0.106, green: 0.102, blue: 0.098, alpha: 1.0)) // #1b1a19
+    static let surfacePrimary    = adaptive(light: .white,                    dark: NSColor(red: 0.141, green: 0.137, blue: 0.125, alpha: 1.0)) // #242320
+    static let surfaceSecondary  = adaptive(light: NSColor(red: 0.965, green: 0.961, blue: 0.957, alpha: 1.0),  // #f6f5f4
+                                            dark:  NSColor(red: 0.180, green: 0.173, blue: 0.161, alpha: 1.0)) // #2e2c29
+    static let surfaceHover      = adaptive(light: NSColor(red: 0.941, green: 0.933, blue: 0.922, alpha: 1.0),  // #f0eeeb
+                                            dark:  NSColor(red: 0.200, green: 0.192, blue: 0.161, alpha: 1.0)) // #333129
+
+    // Text
+    static let textPrimary       = adaptive(light: NSColor(white: 0.0, alpha: 0.95),  dark: NSColor(white: 1.0, alpha: 0.95))
+    static let textSecondary     = adaptive(light: NSColor(red: 0.380, green: 0.365, blue: 0.349, alpha: 1.0),  // #615d59
+                                            dark:  NSColor(red: 0.639, green: 0.620, blue: 0.596, alpha: 1.0)) // #a39e98
+    static let textTertiary      = adaptive(light: NSColor(red: 0.639, green: 0.620, blue: 0.596, alpha: 1.0),
+                                            dark:  NSColor(red: 0.380, green: 0.365, blue: 0.349, alpha: 1.0))
+
+    // Borders (whisper)
+    static let border            = adaptive(light: NSColor(white: 0.0, alpha: 0.10),  dark: NSColor(white: 1.0, alpha: 0.08))
+
+    // Accent (Notion Blue / Link Light Blue in dark)
+    static let accent            = adaptive(light: NSColor(red: 0.000, green: 0.459, blue: 0.871, alpha: 1.0),  // #0075de
+                                            dark:  NSColor(red: 0.384, green: 0.682, blue: 0.941, alpha: 1.0)) // #62aef0
+    static let accentHover       = adaptive(light: NSColor(red: 0.000, green: 0.357, blue: 0.671, alpha: 1.0),  // #005bab
+                                            dark:  NSColor(red: 0.035, green: 0.498, blue: 0.910, alpha: 1.0)) // #097fe8
+
+    // Pill badge
+    static let badgeBlueBg       = adaptive(light: NSColor(red: 0.949, green: 0.976, blue: 1.000, alpha: 1.0),  // #f2f9ff
+                                            dark:  NSColor(red: 0.384, green: 0.682, blue: 0.941, alpha: 0.12))
+    static let badgeBlueText     = adaptive(light: NSColor(red: 0.035, green: 0.498, blue: 0.910, alpha: 1.0),
+                                            dark:  NSColor(red: 0.384, green: 0.682, blue: 0.941, alpha: 1.0))
+
+    // Semantic
+    static let success           = adaptive(light: NSColor(red: 0.102, green: 0.682, blue: 0.224, alpha: 1.0),  // #1aae39
+                                            dark:  NSColor(red: 0.259, green: 0.773, blue: 0.380, alpha: 1.0)) // #42c561
+    static let warning           = adaptive(light: NSColor(red: 0.867, green: 0.357, blue: 0.000, alpha: 1.0),  // #dd5b00
+                                            dark:  NSColor(red: 1.000, green: 0.498, blue: 0.188, alpha: 1.0)) // #ff7f30
+    static let destructive       = adaptive(light: NSColor(red: 0.867, green: 0.000, blue: 0.000, alpha: 1.0),
+                                            dark:  NSColor(red: 1.000, green: 0.361, blue: 0.361, alpha: 1.0)) // #ff5c5c
+}
+
+// MARK: - Spacing (Notion 8-based, extended)
+
+extension Wave.spacing {
+    static let s2:  CGFloat =  2
+    static let s4:  CGFloat =  4
+    static let s6:  CGFloat =  6
+    static let s8:  CGFloat =  8
+    static let s12: CGFloat = 12
+    static let s16: CGFloat = 16
+    static let s20: CGFloat = 20
+    static let s24: CGFloat = 24
+    static let s32: CGFloat = 32
+    static let s48: CGFloat = 48
+    static let s64: CGFloat = 64
+    static let s80: CGFloat = 80
+}
+
+// MARK: - Radius
+
+extension Wave.radius {
+    static let r4:    CGFloat =   4
+    static let r6:    CGFloat =   6
+    static let r8:    CGFloat =   8
+    static let r12:   CGFloat =  12
+    static let r16:   CGFloat =  16
+    static let pill:  CGFloat = 999
+}
+
+// MARK: - Typography (SF Pro, desktop-scaled Notion ladder)
+
+extension Wave.font {
+    /// (size, weight, tracking) triples for the SF Pro Notion-scale ladder.
+    /// `tracking` is points in the SwiftUI sense — apply via `.tracking(...)`.
+    struct Style {
+        let size: CGFloat
+        let weight: Font.Weight
+        let tracking: CGFloat
+        var swiftUIFont: Font { .system(size: size, weight: weight, design: .default) }
+    }
+
+    static let displayHero     = Style(size: 36, weight: .bold,     tracking: -1.2)
+    static let displayLarge    = Style(size: 28, weight: .bold,     tracking: -0.8)
+    static let displayMedium   = Style(size: 24, weight: .bold,     tracking: -0.6)
+    static let sectionHeading  = Style(size: 20, weight: .bold,     tracking: -0.4)
+    static let cardTitle       = Style(size: 17, weight: .semibold, tracking: -0.2)
+    static let bodyLarge       = Style(size: 15, weight: .medium,   tracking:  0)
+    static let body            = Style(size: 13, weight: .regular,  tracking:  0)
+    static let bodyMedium      = Style(size: 13, weight: .medium,   tracking:  0)
+    static let bodySemibold    = Style(size: 13, weight: .semibold, tracking:  0)
+    static let nav             = Style(size: 13, weight: .semibold, tracking:  0)
+    static let caption         = Style(size: 11, weight: .medium,   tracking:  0)
+    static let captionLight    = Style(size: 11, weight: .regular,  tracking:  0)
+    static let badge           = Style(size: 10, weight: .semibold, tracking:  0.3)
+    static let micro           = Style(size: 10, weight: .regular,  tracking:  0.2)
+}
+
+extension View {
+    /// Apply a Wave typography style (size + weight + tracking) in one call.
+    func waveFont(_ style: Wave.font.Style) -> some View {
+        self.font(style.swiftUIFont).tracking(style.tracking)
+    }
+}
+
+// MARK: - Window dimensions (preserved from old WaveTheme for WaveApp use)
+
+extension Wave {
+    enum window {
+        static let sidebarWidth: CGFloat = 220
+        static let mainWidth:    CGFloat = 780
+        static let mainHeight:   CGFloat = 520
+    }
+}
+
+// MARK: - Legacy shims (temporary — removed in Phase 14)
+// During the phased migration, existing views still reference `WaveTheme.xyz`.
+// Keep these shims so old code compiles while we migrate view-by-view.
+
+enum WaveTheme {
+    static let background        = Wave.colors.background
+    static let surfacePrimary    = Wave.colors.surfacePrimary
+    static let surfaceSecondary  = Wave.colors.surfaceSecondary
+    static let surfaceHover      = Wave.colors.surfaceHover
+    static let textPrimary       = Wave.colors.textPrimary
+    static let textSecondary     = Wave.colors.textSecondary
+    static let textTertiary      = Wave.colors.textTertiary
+    static let border            = Wave.colors.border
+    static let accent            = Wave.colors.accent
+    static let destructive       = Wave.colors.destructive
+    static let glowColor         = Color.white.opacity(0.03)  // unused by new components but referenced by MainWindowView until phase 5
+
+    static let spacingXS:  CGFloat = Wave.spacing.s4
+    static let spacingSM:  CGFloat = Wave.spacing.s8
+    static let spacingMD:  CGFloat = Wave.spacing.s12
+    static let spacingLG:  CGFloat = Wave.spacing.s16
+    static let spacingXL:  CGFloat = Wave.spacing.s24
+    static let spacingXXL: CGFloat = Wave.spacing.s32
+
+    static let radiusSM:    CGFloat = Wave.radius.r6
+    static let radiusMD:    CGFloat = Wave.radius.r12
+    static let radiusLG:    CGFloat = Wave.radius.r16
+    static let radiusInner: CGFloat = Wave.radius.r8
+
+    static let sidebarWidth: CGFloat = Wave.window.sidebarWidth
+    static let windowWidth:  CGFloat = Wave.window.mainWidth
+    static let windowHeight: CGFloat = Wave.window.mainHeight
+}
+
+// MARK: - Legacy CardStyle shim (updated to use new tokens under the hood)
 struct CardStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .padding(WaveTheme.spacingLG)
-            .background(WaveTheme.surfacePrimary)
-            .clipShape(RoundedRectangle(cornerRadius: WaveTheme.radiusMD))
-            .shadow(color: .black.opacity(0.3), radius: 1.5, x: 0, y: 1)
-            .shadow(color: .white.opacity(0.06), radius: 0.5, x: 0, y: 0)
+            .padding(Wave.spacing.s16)
+            .background(Wave.colors.surfacePrimary)
+            .clipShape(RoundedRectangle(cornerRadius: Wave.radius.r12))
+            .overlay(
+                RoundedRectangle(cornerRadius: Wave.radius.r12)
+                    .stroke(Wave.colors.border, lineWidth: 1)
+            )
     }
 }
 
 struct SectionHeaderStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(WaveTheme.textSecondary)
+            .waveFont(Wave.font.caption)
+            .foregroundStyle(Wave.colors.textSecondary)
+            .textCase(.uppercase)
     }
 }
 
 extension View {
-    func cardStyle() -> some View {
-        modifier(CardStyle())
-    }
-
-    func sectionHeader() -> some View {
-        modifier(SectionHeaderStyle())
-    }
+    func cardStyle() -> some View { modifier(CardStyle()) }
+    func sectionHeader() -> some View { modifier(SectionHeaderStyle()) }
 }
