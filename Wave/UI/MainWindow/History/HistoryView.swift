@@ -4,82 +4,87 @@ struct HistoryView: View {
     @State private var entries: [HistoryEntry] = []
     @State private var searchText = ""
     @State private var totalCount = 0
+
+    private var grouped: [Date: [HistoryEntry]] {
+        Dictionary(grouping: entries) { entry in
+            Calendar.current.startOfDay(for: entry.createdAt)
+        }
+    }
+
+    private var sortedDates: [Date] {
+        grouped.keys.sorted(by: >)
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            // Search bar
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(WaveTheme.textTertiary)
-                TextField("Find...", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .onSubmit { search() }
+        ScrollView {
+            VStack(alignment: .leading, spacing: Wave.spacing.s24) {
 
-                Spacer()
+                // MARK: Header
+                WaveSectionHeader("History", subtitle: "\(totalCount) recordings")
 
-                Text("⌘F")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(WaveTheme.textTertiary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(WaveTheme.surfaceSecondary)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-            }
-            .padding(WaveTheme.spacingMD)
-            .background(WaveTheme.surfacePrimary)
+                // MARK: Search field
+                HStack(spacing: Wave.spacing.s8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(Wave.colors.textTertiary)
+                        .frame(width: 16)
+                    TextField("Search recordings...", text: $searchText)
+                        .textFieldStyle(.plain)
+                        .waveFont(Wave.font.body)
+                        .onSubmit { search() }
+                        .onChange(of: searchText) { _ in
+                            if searchText.isEmpty { loadHistory() }
+                        }
+                }
+                .padding(.horizontal, Wave.spacing.s12)
+                .padding(.vertical, Wave.spacing.s8)
+                .background(Wave.colors.surfaceSecondary)
+                .whisperBorder(radius: Wave.radius.r8)
 
-            Divider()
+                // MARK: Content
+                if entries.isEmpty {
+                    WaveEmptyState(
+                        icon: "clock",
+                        title: "No recordings yet",
+                        subtitle: "Your dictation history will appear here."
+                    )
+                    .frame(maxWidth: .infinity, minHeight: 200)
+                } else {
+                    VStack(alignment: .leading, spacing: Wave.spacing.s20) {
+                        ForEach(sortedDates, id: \.self) { date in
+                            VStack(alignment: .leading, spacing: Wave.spacing.s8) {
 
-            // History list
-            if entries.isEmpty {
-                EmptyStateView(
-                    icon: "clock.arrow.circlepath",
-                    title: "No recordings yet",
-                    subtitle: "Press ⌘⇧Space to start your first recording."
-                )
-            }
-
-            ScrollView {
-                LazyVStack(spacing: WaveTheme.spacingSM) {
-                    let grouped = Dictionary(grouping: entries) { entry in
-                        Calendar.current.startOfDay(for: entry.createdAt)
-                    }
-
-                    ForEach(grouped.keys.sorted(by: >), id: \.self) { date in
-                        Section {
-                            ForEach(grouped[date] ?? [], id: \.id) { entry in
-                                HistoryEntryCard(entry: entry)
-                            }
-                        } header: {
-                            HStack {
+                                // Date group header
                                 Text(dateLabel(for: date))
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(WaveTheme.textTertiary)
-                                Spacer()
+                                    .waveFont(Wave.font.bodySemibold)
+                                    .foregroundStyle(Wave.colors.textSecondary)
+
+                                // Entries card
+                                WaveCard(padding: 0) {
+                                    VStack(spacing: 0) {
+                                        let dayEntries = grouped[date] ?? []
+                                        ForEach(Array(dayEntries.enumerated()), id: \.element.id) { index, entry in
+                                            HistoryRowView(entry: entry)
+
+                                            if index < dayEntries.count - 1 {
+                                                Divider()
+                                                    .foregroundStyle(Wave.colors.border)
+                                            }
+                                        }
+                                    }
+                                }
                             }
-                            .padding(.top, WaveTheme.spacingSM)
                         }
                     }
                 }
-                .padding(WaveTheme.spacingLG)
             }
-
-            Divider()
-
-            // Footer
-            HStack {
-                Spacer()
-                Text("\(totalCount) Recordings")
-                    .font(.system(size: 12))
-                    .monospacedDigit()
-                    .foregroundStyle(WaveTheme.accent)
-                Spacer()
-            }
-            .padding(WaveTheme.spacingSM)
+            .padding(Wave.spacing.s32)
         }
         .onAppear {
             loadHistory()
         }
     }
+
+    // MARK: - Data
 
     private func loadHistory() {
         entries = (try? DatabaseManager.shared.fetchHistory()) ?? []
@@ -103,26 +108,57 @@ struct HistoryView: View {
     }
 }
 
-struct HistoryEntryCard: View {
+// MARK: - History Row
+
+private struct HistoryRowView: View {
     let entry: HistoryEntry
+    @State private var isHovering = false
+
+    private var timestamp: String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: entry.createdAt)
+    }
 
     var body: some View {
-        Button {
+        HStack(spacing: Wave.spacing.s12) {
+            // Leading: timestamp
+            Text(timestamp)
+                .waveFont(Wave.font.micro)
+                .foregroundStyle(Wave.colors.textTertiary)
+                .frame(width: 48, alignment: .leading)
+
+            // Title + subtitle
+            VStack(alignment: .leading, spacing: Wave.spacing.s2) {
+                Text(entry.cleanedText)
+                    .waveFont(Wave.font.bodyMedium)
+                    .foregroundStyle(Wave.colors.textPrimary)
+                    .lineLimit(2)
+                if let sourceApp = entry.sourceApp, !sourceApp.isEmpty {
+                    Text(sourceApp)
+                        .waveFont(Wave.font.captionLight)
+                        .foregroundStyle(Wave.colors.textSecondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer()
+
+            // Accessory: copy icon on hover
+            if isHovering {
+                Image(systemName: "doc.on.doc")
+                    .foregroundStyle(Wave.colors.textTertiary)
+                    .frame(width: 16)
+            }
+        }
+        .padding(.horizontal, Wave.spacing.s12)
+        .padding(.vertical, Wave.spacing.s10)
+        .background(isHovering ? Wave.colors.surfaceHover : Color.clear)
+        .contentShape(Rectangle())
+        .onHover { isHovering = $0 }
+        .onTapGesture {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(entry.cleanedText, forType: .string)
-        } label: {
-            HStack {
-                Text(entry.cleanedText)
-                    .font(.system(size: 13))
-                    .foregroundStyle(WaveTheme.textPrimary)
-                    .lineLimit(3)
-                    .multilineTextAlignment(.leading)
-                Spacer()
-            }
-            .padding(WaveTheme.spacingMD)
-            .background(WaveTheme.surfacePrimary)
-            .clipShape(RoundedRectangle(cornerRadius: WaveTheme.radiusInner))
         }
-        .buttonStyle(.plain)
     }
 }
