@@ -4,84 +4,69 @@ struct SnippetsView: View {
     @State private var snippets: [Snippet] = []
     @State private var selectedSnippet: Snippet?
     @State private var isCreating = false
+
     var body: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                // List panel
+        HStack(spacing: Wave.spacing.s16) {
+            // Left pane (~40%)
+            WaveCard(padding: 0) {
                 VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        Text("Snippets")
-                            .font(.system(size: 20, weight: .bold))
-                        Spacer()
-                        Button("Create snippet") {
-                            isCreating = true
-                            selectedSnippet = Snippet(triggerPhrase: "", content: "")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                    }
-                    .padding(WaveTheme.spacingLG)
-
-                    Text("Define voice-triggered text expansions. Say the trigger phrase while recording and Wave will expand it to the full content.")
-                        .font(.system(size: 12))
-                        .foregroundStyle(WaveTheme.textSecondary)
-                        .padding(.horizontal, WaveTheme.spacingLG)
-                        .padding(.bottom, WaveTheme.spacingMD)
-
-                    if snippets.isEmpty {
-                        EmptyStateView(
-                            icon: "doc.text.fill",
-                            title: "No snippets yet",
-                            subtitle: "Create text expansions triggered by your voice.",
-                            actionLabel: "Create your first snippet",
-                            action: {
+                    WaveSectionHeader(
+                        "Snippets",
+                        trailing: AnyView(
+                            WaveButton("Add", icon: "plus", kind: .ghost) {
                                 isCreating = true
                                 selectedSnippet = Snippet(triggerPhrase: "", content: "")
                             }
                         )
+                    )
+                    .padding(.horizontal, Wave.spacing.s16)
+                    .padding(.top, Wave.spacing.s16)
+                    .padding(.bottom, Wave.spacing.s12)
+
+                    if snippets.isEmpty {
+                        WaveEmptyState(
+                            icon: "doc.text",
+                            title: "No snippets",
+                            subtitle: "Create trigger phrases that expand into longer text."
+                        )
+                        .padding(Wave.spacing.s16)
                     } else {
                         ScrollView {
-                            VStack(spacing: WaveTheme.spacingXS) {
+                            VStack(spacing: 0) {
                                 ForEach(snippets, id: \.id) { snippet in
-                                    Button {
-                                        isCreating = false
-                                        selectedSnippet = snippet
-                                    } label: {
-                                        HStack {
-                                            VStack(alignment: .leading, spacing: 4) {
-                                                Text(snippet.triggerPhrase)
-                                                    .font(.system(size: 13, weight: .medium))
-                                                    .foregroundStyle(WaveTheme.textPrimary)
-                                                Text(snippet.content.prefix(60) + (snippet.content.count > 60 ? "..." : ""))
-                                                    .font(.system(size: 11))
-                                                    .foregroundStyle(WaveTheme.textSecondary)
-                                                    .lineLimit(2)
-                                            }
-                                            Spacer()
-                                            if selectedSnippet?.id == snippet.id {
-                                                Image(systemName: "chevron.right")
-                                                    .font(.system(size: 10))
-                                                    .foregroundStyle(WaveTheme.textTertiary)
-                                            }
+                                    let isSelected = selectedSnippet?.id == snippet.id
+                                    let preview: String = {
+                                        let c = snippet.content
+                                        let firstLine = c.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? c
+                                        return firstLine.count > 60 ? String(firstLine.prefix(60)) + "..." : firstLine
+                                    }()
+
+                                    WaveListItem(
+                                        title: snippet.triggerPhrase,
+                                        subtitle: preview,
+                                        onTap: {
+                                            isCreating = false
+                                            selectedSnippet = snippet
                                         }
-                                        .padding(WaveTheme.spacingMD)
-                                        .background(selectedSnippet?.id == snippet.id ? WaveTheme.surfaceHover : WaveTheme.surfacePrimary)
-                                        .clipShape(RoundedRectangle(cornerRadius: WaveTheme.radiusInner))
-                                        .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 0.5)
+                                    )
+                                    .background(isSelected ? Wave.colors.accent.opacity(0.08) : Color.clear)
+
+                                    if snippet.id != snippets.last?.id {
+                                        Divider()
+                                            .foregroundStyle(Wave.colors.border)
                                     }
-                                    .buttonStyle(.plain)
                                 }
                             }
-                            .padding(.horizontal, WaveTheme.spacingLG)
-                            .padding(.bottom, WaveTheme.spacingLG)
                         }
                     }
                 }
-                .frame(width: geometry.size.width * 0.35)
+            }
+            .frame(minWidth: 0, maxWidth: .infinity)
+            .frame(width: nil)
+            .layoutPriority(0.4)
 
-                Divider()
-
-                // Editor panel
+            // Right pane (~60%)
+            WaveCard(padding: 0) {
                 if let snippet = selectedSnippet {
                     SnippetEditorView(
                         snippet: snippet,
@@ -97,19 +82,24 @@ struct SnippetsView: View {
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    EmptyStateView(
-                        icon: "doc.text.fill",
-                        title: "Select a snippet to edit",
-                        subtitle: "Choose a snippet from the list or create a new one."
+                    WaveEmptyState(
+                        icon: "pencil",
+                        title: "Select a snippet"
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
+            .frame(minWidth: 0, maxWidth: .infinity)
+            .layoutPriority(0.6)
         }
+        .padding(Wave.spacing.s16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             loadSnippets()
         }
     }
+
+    // MARK: - Data
 
     private func loadSnippets() {
         snippets = (try? DatabaseManager.shared.fetchSnippets()) ?? []

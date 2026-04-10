@@ -7,59 +7,64 @@ struct SnippetEditorView: View {
     let onDelete: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: WaveTheme.spacingLG) {
+        VStack(alignment: .leading, spacing: Wave.spacing.s16) {
             // Header
-            HStack {
-                Text(isNew ? "New Snippet" : "Edit Snippet")
-                    .font(.system(size: 16, weight: .semibold))
-                Spacer()
-                if !isNew {
-                    Button(role: .destructive) {
-                        onDelete()
-                    } label: {
-                        Image(systemName: "trash")
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(WaveTheme.destructive)
-                }
-            }
+            WaveSectionHeader("Edit Snippet")
+                .padding(.horizontal, Wave.spacing.s16)
+                .padding(.top, Wave.spacing.s16)
 
             // Trigger phrase
-            VStack(alignment: .leading, spacing: WaveTheme.spacingXS) {
+            VStack(alignment: .leading, spacing: Wave.spacing.s6) {
                 Text("Trigger phrase")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(WaveTheme.textSecondary)
+                    .waveFont(Wave.font.caption)
+                    .foregroundStyle(Wave.colors.textSecondary)
                 TextField("e.g., calendar, FAQ answer, signature", text: $snippet.triggerPhrase)
-                    .textFieldStyle(.roundedBorder)
+                    .waveFont(Wave.font.body)
+                    .textFieldStyle(.plain)
+                    .padding(Wave.spacing.s8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Wave.radius.r8)
+                            .stroke(Wave.colors.border, lineWidth: 1)
+                    )
             }
+            .padding(.horizontal, Wave.spacing.s16)
 
             // Content
-            VStack(alignment: .leading, spacing: WaveTheme.spacingXS) {
+            VStack(alignment: .leading, spacing: Wave.spacing.s6) {
                 Text("Expanded content")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(WaveTheme.textSecondary)
+                    .waveFont(Wave.font.caption)
+                    .foregroundStyle(Wave.colors.textSecondary)
                 TextEditor(text: $snippet.content)
-                    .font(.system(size: 13))
-                    .frame(minHeight: 200)
+                    .waveFont(Wave.font.body)
                     .scrollContentBackground(.hidden)
-                    .padding(WaveTheme.spacingSM)
-                    .background(WaveTheme.surfaceSecondary)
-                    .clipShape(RoundedRectangle(cornerRadius: WaveTheme.radiusSM))
+                    .frame(minHeight: 120)
+                    .padding(Wave.spacing.s8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Wave.radius.r8)
+                            .stroke(Wave.colors.border, lineWidth: 1)
+                    )
             }
+            .padding(.horizontal, Wave.spacing.s16)
 
             Spacer()
 
-            // Save button
+            // Action buttons
             HStack {
+                WaveButton("Delete", kind: .ghost) {
+                    onDelete()
+                }
+                .foregroundStyle(Wave.colors.destructive)
+
                 Spacer()
-                Button("Save") {
+
+                WaveButton("Save", kind: .primary) {
                     snippet.updatedAt = Date()
                     onSave(snippet)
                 }
-                .buttonStyle(.borderedProminent)
                 .disabled(snippet.triggerPhrase.isEmpty || snippet.content.isEmpty)
             }
+            .padding(.horizontal, Wave.spacing.s16)
+            .padding(.bottom, Wave.spacing.s16)
         }
-        .padding(WaveTheme.spacingXL)
     }
 }
