@@ -6,65 +6,71 @@ struct VocabularyView: View {
     @State private var newWord = ""
     @State private var newReplacement = ""
     @State private var newCategory: DictionaryEntry.Category = .general
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: WaveTheme.spacingXL) {
-                VStack(alignment: .leading, spacing: WaveTheme.spacingSM) {
-                    Text("Vocabulary")
-                        .font(.system(size: 20, weight: .bold))
-                    Text("Teach Wave to recognize people's names, company names, acronyms, slang, or words from other languages.")
-                        .font(.system(size: 13))
-                        .foregroundStyle(WaveTheme.textSecondary)
-                }
+            VStack(alignment: .leading, spacing: Wave.spacing.s24) {
+                WaveSectionHeader(
+                    "Vocabulary",
+                    subtitle: "Words Wave should always get right."
+                )
 
                 addWordForm
                 categoryFilter
                 entriesList
             }
-            .padding(WaveTheme.spacingXL)
+            .padding(Wave.spacing.s32)
         }
         .onAppear {
             loadEntries()
         }
     }
 
+    // MARK: - Add word form
+
     private var addWordForm: some View {
-        VStack(alignment: .leading, spacing: WaveTheme.spacingSM) {
-            Text("Input")
-                .font(.system(size: 13, weight: .medium))
+        WaveCard {
+            VStack(alignment: .leading, spacing: Wave.spacing.s12) {
+                Text("Add Word")
+                    .waveFont(Wave.font.bodyMedium)
+                    .foregroundStyle(Wave.colors.textPrimary)
 
-            HStack(spacing: WaveTheme.spacingSM) {
-                TextField("New word or sentence", text: $newWord)
-                    .textFieldStyle(.roundedBorder)
+                HStack(spacing: Wave.spacing.s8) {
+                    TextField("New word or sentence", text: $newWord)
+                        .textFieldStyle(.roundedBorder)
 
-                TextField("Replace with... (optional)", text: $newReplacement)
-                    .textFieldStyle(.roundedBorder)
+                    TextField("Replace with... (optional)", text: $newReplacement)
+                        .textFieldStyle(.roundedBorder)
 
-                Picker("", selection: $newCategory) {
-                    ForEach(DictionaryEntry.Category.allCases, id: \.self) { cat in
-                        Text(cat.rawValue.capitalized).tag(cat)
+                    Picker("", selection: $newCategory) {
+                        ForEach(DictionaryEntry.Category.allCases, id: \.self) { cat in
+                            Text(cat.rawValue.capitalized).tag(cat)
+                        }
                     }
-                }
-                .frame(width: 100)
+                    .frame(width: 100)
 
-                Button("Add to vocabulary") {
-                    addEntry()
+                    WaveButton("Add", kind: .primary) {
+                        addEntry()
+                    }
+                    .disabled(newWord.isEmpty)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(newWord.isEmpty)
             }
         }
-        .cardStyle()
     }
 
+    // MARK: - Category filter chips
+
     private var categoryFilter: some View {
-        HStack(spacing: WaveTheme.spacingSM) {
-            FilterChip(label: "All", isSelected: selectedCategory == nil) {
+        HStack(spacing: Wave.spacing.s8) {
+            WaveChip(title: "All", isSelected: selectedCategory == nil) {
                 selectedCategory = nil
                 loadEntries()
             }
             ForEach(DictionaryEntry.Category.allCases, id: \.self) { category in
-                FilterChip(label: category.rawValue.capitalized, isSelected: selectedCategory == category) {
+                WaveChip(
+                    title: category.rawValue.capitalized,
+                    isSelected: selectedCategory == category
+                ) {
                     selectedCategory = category
                     loadEntries()
                 }
@@ -72,26 +78,48 @@ struct VocabularyView: View {
         }
     }
 
+    // MARK: - Entries list
+
     private var entriesList: some View {
         Group {
             if entries.isEmpty {
-                EmptyStateView(
-                    icon: "book.fill",
-                    title: "No words added yet",
-                    subtitle: "Teach Wave custom words, names, or industry terms."
+                WaveEmptyState(
+                    icon: "book",
+                    title: "No words yet",
+                    subtitle: "Add words Wave should always transcribe correctly."
                 )
                 .frame(height: 200)
             } else {
-                VStack(spacing: WaveTheme.spacingXS) {
-                    ForEach(entries, id: \.id) { entry in
-                        VocabularyEntryCard(entry: entry) {
-                            deleteEntry(id: entry.id)
+                WaveCard(padding: 0) {
+                    VStack(spacing: 0) {
+                        ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                            WaveListItem(
+                                title: entry.word,
+                                subtitle: entry.replacement
+                            ) {
+                                Button {
+                                    deleteEntry(id: entry.id)
+                                } label: {
+                                    Image(systemName: "trash")
+                                        .waveFont(Wave.font.caption)
+                                        .foregroundStyle(Wave.colors.destructive)
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            if index < entries.count - 1 {
+                                Divider()
+                                    .foregroundStyle(Wave.colors.border)
+                                    .padding(.horizontal, Wave.spacing.s12)
+                            }
                         }
                     }
                 }
             }
         }
     }
+
+    // MARK: - Data logic
 
     private func addEntry() {
         let entry = DictionaryEntry(
@@ -112,66 +140,5 @@ struct VocabularyView: View {
 
     private func loadEntries() {
         entries = (try? DatabaseManager.shared.fetchDictionaryEntries(category: selectedCategory)) ?? []
-    }
-}
-
-struct VocabularyEntryCard: View {
-    let entry: DictionaryEntry
-    let onDelete: () -> Void
-
-    var body: some View {
-        HStack {
-            if let replacement = entry.replacement {
-                Text(entry.word)
-                    .foregroundStyle(WaveTheme.textSecondary)
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 10))
-                    .foregroundStyle(WaveTheme.textTertiary)
-                Text(replacement)
-                    .foregroundStyle(WaveTheme.textPrimary)
-            } else {
-                Text(entry.word)
-                    .foregroundStyle(WaveTheme.textPrimary)
-            }
-
-            Spacer()
-
-            Text(entry.category.rawValue.capitalized)
-                .font(.system(size: 10))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(WaveTheme.surfaceSecondary)
-                .clipShape(Capsule())
-                .foregroundStyle(WaveTheme.textSecondary)
-
-            Button(action: onDelete) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10))
-                    .foregroundStyle(WaveTheme.textTertiary)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(WaveTheme.spacingMD)
-        .background(WaveTheme.surfacePrimary)
-        .clipShape(RoundedRectangle(cornerRadius: WaveTheme.radiusInner))
-    }
-}
-
-struct FilterChip: View {
-    let label: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(label)
-                .font(.system(size: 12))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(isSelected ? WaveTheme.accent.opacity(0.2) : WaveTheme.surfacePrimary)
-                .foregroundStyle(isSelected ? WaveTheme.accent : WaveTheme.textSecondary)
-                .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
     }
 }
