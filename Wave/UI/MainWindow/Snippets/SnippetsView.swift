@@ -61,7 +61,7 @@ struct SnippetsView: View {
                     }
                 }
             }
-            .frame(width: 220)
+            .frame(width: 280)
 
             // Right pane (~60%)
             WaveCard(padding: 0) {

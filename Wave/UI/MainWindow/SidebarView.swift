@@ -17,7 +17,8 @@ struct SidebarView: View {
                     .foregroundStyle(Wave.colors.textPrimary)
             }
             .padding(.horizontal, Wave.spacing.s16)
-            .padding(.vertical, Wave.spacing.s20)
+            .padding(.top, Wave.spacing.s8)
+            .padding(.bottom, Wave.spacing.s12)
 
             // MARK: Nav items
             VStack(alignment: .leading, spacing: Wave.spacing.s2) {
@@ -69,6 +70,7 @@ private struct SidebarRow: View {
                 Text(item.rawValue)
                     .waveFont(Wave.font.nav)
                     .foregroundStyle(isSelected ? Wave.colors.accent : Wave.colors.textPrimary)
+                    .lineLimit(1)
 
                 Spacer()
             }

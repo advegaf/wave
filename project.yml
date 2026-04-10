@@ -94,7 +94,7 @@ targets:
         LSApplicationCategoryType: public.app-category.productivity
         NSMicrophoneUsageDescription: "Wave needs microphone access to transcribe your speech into text."
         NSAppleEventsUsageDescription: "Wave needs to send paste commands to insert transcribed text into your apps."
-        CFBundleShortVersionString: "0.7.0"
+        CFBundleShortVersionString: "0.7.1"
 
   WaveTests:
     type: bundle.unit-test

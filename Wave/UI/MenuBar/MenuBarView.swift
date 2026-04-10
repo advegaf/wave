@@ -42,17 +42,11 @@ struct MenuBarView: View {
 
             Divider().foregroundStyle(Wave.colors.border)
 
-            // Rewrite level picker
-            HStack(spacing: Wave.spacing.s12) {
-                Text("Rewrite")
-                    .waveFont(Wave.font.caption)
-                    .foregroundStyle(Wave.colors.textSecondary)
-                WaveSegmentedControl(selection: Binding(
-                    get: { appState.selectedRewriteLevel },
-                    set: { appState.selectedRewriteLevel = $0 }
-                ))
-                .frame(maxWidth: .infinity)
-            }
+            // Rewrite level picker — no label, full width for 4 segments
+            WaveSegmentedControl(selection: Binding(
+                get: { appState.selectedRewriteLevel },
+                set: { appState.selectedRewriteLevel = $0 }
+            ))
             .padding(.horizontal, Wave.spacing.s16)
             .padding(.vertical, Wave.spacing.s10)
 
@@ -118,7 +112,7 @@ struct MenuBarView: View {
                 .padding(.vertical, Wave.spacing.s10)
             }.buttonStyle(.plain)
         }
-        .frame(width: 340)
+        .frame(width: 380)
         .background(Wave.colors.surfacePrimary)
     }
 
