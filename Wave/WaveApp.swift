@@ -38,7 +38,7 @@ struct WaveApp: App {
             .onChange(of: appState.soundEffectsVolume) { syncCoordinatorSettings() }
             .onChange(of: appState.playbackBehavior) { syncCoordinatorSettings() }
         }
-        .defaultSize(width: WaveTheme.windowWidth, height: WaveTheme.windowHeight)
+        .defaultSize(width: Wave.window.mainWidth, height: Wave.window.mainHeight)
         .windowResizability(.contentSize)
     }
 
