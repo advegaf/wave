@@ -7,9 +7,11 @@ struct SidebarView: View {
         VStack(alignment: .leading, spacing: 0) {
             // MARK: Brand header
             HStack(spacing: Wave.spacing.s8) {
-                Image(systemName: "waveform")
-                    .foregroundStyle(Wave.colors.accent)
-                    .waveFont(Wave.font.cardTitle)
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 24, height: 24)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
                 Text("Wave")
                     .waveFont(Wave.font.cardTitle)
                     .foregroundStyle(Wave.colors.textPrimary)
@@ -33,11 +35,16 @@ struct SidebarView: View {
             Spacer()
 
             // MARK: Footer
-            Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0")")
-                .waveFont(Wave.font.micro)
-                .foregroundStyle(Wave.colors.textTertiary)
-                .padding(.horizontal, Wave.spacing.s16)
-                .padding(.bottom, Wave.spacing.s16)
+            VStack(spacing: Wave.spacing.s4) {
+                Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0")")
+                    .waveFont(Wave.font.micro)
+                    .foregroundStyle(Wave.colors.textTertiary)
+                Text("© 2026 Angel Vega. All rights reserved.")
+                    .waveFont(Wave.font.micro)
+                    .foregroundStyle(Wave.colors.textTertiary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, Wave.spacing.s16)
         }
         .frame(minWidth: Wave.window.sidebarWidth)
     }

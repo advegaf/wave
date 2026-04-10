@@ -49,24 +49,24 @@ struct ModelsLibraryView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: Wave.spacing.s12) {
                 heroCard(
-                    title: "Best Accuracy",
-                    subtitle: "Whisper + Claude",
-                    description: "Highest quality transcription and rewriting",
-                    accentColor: .purple
+                    title: "Balanced",
+                    subtitle: "WhisperKit + Llama 3B",
+                    description: "Good quality at comfortable size",
+                    accentColor: Wave.colors.accent
                 )
 
                 heroCard(
                     title: "Fastest",
-                    subtitle: "Deepgram + GPT",
-                    description: "Low latency real-time performance",
-                    accentColor: .orange
+                    subtitle: "WhisperKit + Llama 1B",
+                    description: "Lowest latency, basic cleanup",
+                    accentColor: Wave.colors.warning
                 )
 
                 heroCard(
-                    title: "Budget",
-                    subtitle: "Deepgram + GPT-mini",
-                    description: "Cost-effective for everyday use",
-                    accentColor: .green
+                    title: "Best Quality",
+                    subtitle: "WhisperKit + Qwen 8B",
+                    description: "Highest quality, needs more RAM",
+                    accentColor: Wave.colors.success
                 )
             }
         }

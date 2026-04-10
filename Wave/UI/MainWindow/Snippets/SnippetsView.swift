@@ -61,9 +61,7 @@ struct SnippetsView: View {
                     }
                 }
             }
-            .frame(minWidth: 0, maxWidth: .infinity)
-            .frame(width: nil)
-            .layoutPriority(0.4)
+            .frame(width: 220)
 
             // Right pane (~60%)
             WaveCard(padding: 0) {
@@ -89,8 +87,7 @@ struct SnippetsView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .frame(minWidth: 0, maxWidth: .infinity)
-            .layoutPriority(0.6)
+            .frame(maxWidth: .infinity)
         }
         .padding(Wave.spacing.s16)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

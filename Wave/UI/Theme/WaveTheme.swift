@@ -134,8 +134,8 @@ extension View {
 extension Wave {
     enum window {
         static let sidebarWidth: CGFloat = 220
-        static let mainWidth:    CGFloat = 780
-        static let mainHeight:   CGFloat = 520
+        static let mainWidth:    CGFloat = 700
+        static let mainHeight:   CGFloat = 500
     }
 }
 

@@ -20,7 +20,7 @@ struct WaveApp: App {
         .menuBarExtraStyle(.window)
 
         // Main Window
-        Window("Wave", id: "main") {
+        Window("", id: "main") {
             Group {
                 if appState.hasCompletedSetup {
                     MainWindowView(appState: appState, coordinator: coordinator)
@@ -28,7 +28,7 @@ struct WaveApp: App {
                     SetupWizardView(appState: appState)
                 }
             }
-            .preferredColorScheme(.dark)
+            .frame(width: Wave.window.mainWidth, height: Wave.window.mainHeight)
             .onChange(of: appState.overlayStyle) { syncCoordinatorSettings() }
             .onChange(of: appState.overlayPositionY) { syncCoordinatorSettings() }
             .onChange(of: appState.selectedRewriteLevel) { syncCoordinatorSettings() }

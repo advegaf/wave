@@ -9,9 +9,9 @@ struct WaveSegmentedControl<T>: View where T: Hashable & CaseIterable & RawRepre
             ForEach(Array(T.allCases), id: \.self) { option in
                 let isSelected = option == selection
                 Text(option.rawValue)
-                    .waveFont(Wave.font.caption)
+                    .waveFont(Wave.font.micro)
                     .foregroundStyle(isSelected ? Wave.colors.textPrimary : Wave.colors.textSecondary)
-                    .padding(.horizontal, Wave.spacing.s12)
+                    .padding(.horizontal, Wave.spacing.s8)
                     .padding(.vertical, Wave.spacing.s6)
                     .frame(maxWidth: .infinity)
                     .background(
