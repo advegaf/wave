@@ -8,14 +8,15 @@ struct HomeView: View {
     @State private var appsUsed = 0
     @State private var averageWPM = 0
     @State private var timeSaved = 0
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: WaveTheme.spacingXL) {
+            VStack(alignment: .leading, spacing: Wave.spacing.s24) {
                 statsBar
                 quickActions
                 whatsNew
             }
-            .padding(WaveTheme.spacingXL)
+            .padding(Wave.spacing.s24)
         }
         .onAppear {
             loadStats()
@@ -26,93 +27,117 @@ struct HomeView: View {
 
     private var statsBar: some View {
         HStack(spacing: 0) {
-            StatItem(value: "\(averageWPM) WPM", label: "Average speed")
-            Divider().frame(height: 30)
-            StatItem(value: "\(totalWords)", label: "Words this week")
-            Divider().frame(height: 30)
-            StatItem(value: "\(appsUsed)", label: "Apps used")
-            Divider().frame(height: 30)
-            StatItem(value: "\(timeSaved) minutes", label: "Saved this week")
+            statCell(value: "\(averageWPM) WPM", label: "AVERAGE SPEED")
+            Divider()
+                .frame(height: 36)
+                .foregroundStyle(Wave.colors.border)
+            statCell(value: "\(totalWords)", label: "WORDS THIS WEEK")
+            Divider()
+                .frame(height: 36)
+                .foregroundStyle(Wave.colors.border)
+            statCell(value: "\(appsUsed)", label: "APPS USED")
+            Divider()
+                .frame(height: 36)
+                .foregroundStyle(Wave.colors.border)
+            statCell(value: "\(timeSaved) min", label: "SAVED THIS WEEK")
         }
-        .cardStyle()
+    }
+
+    private func statCell(value: String, label: String) -> some View {
+        VStack(alignment: .leading, spacing: Wave.spacing.s4) {
+            Text(value)
+                .waveFont(Wave.font.displayLarge)
+                .foregroundStyle(Wave.colors.textPrimary)
+                .monospacedDigit()
+            Text(label)
+                .waveFont(Wave.font.caption)
+                .foregroundStyle(Wave.colors.textTertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Wave.spacing.s16)
+        .padding(.vertical, Wave.spacing.s12)
     }
 
     // MARK: - Quick Actions
 
     private var quickActions: some View {
-        VStack(alignment: .leading, spacing: WaveTheme.spacingMD) {
-            Text("Get started")
-                .sectionHeader()
+        VStack(alignment: .leading, spacing: Wave.spacing.s12) {
+            WaveSectionHeader("Get Started")
 
-            VStack(spacing: 2) {
-                QuickActionRow(
-                    icon: "record.circle",
-                    title: "Start recording",
-                    subtitle: "Turn your voice to text with a single click.",
-                    shortcut: "⌘⇧ Space"
-                )
+            WaveCard(style: .standard, padding: 0) {
+                VStack(spacing: 0) {
+                    WaveListItem(
+                        title: "Start recording",
+                        subtitle: "Turn your voice to text with a single click.",
+                        leading: "record.circle"
+                    ) {
+                        Text("⌘⇧ Space")
+                            .waveFont(Wave.font.micro)
+                            .foregroundStyle(Wave.colors.textTertiary)
+                            .padding(.horizontal, Wave.spacing.s8)
+                            .padding(.vertical, Wave.spacing.s4)
+                            .background(Wave.colors.surfaceSecondary)
+                            .clipShape(RoundedRectangle(cornerRadius: Wave.radius.r4))
+                    }
 
-                QuickActionRow(
-                    icon: "keyboard",
-                    title: "Customize your shortcuts",
-                    subtitle: "Change the keyboard shortcuts for Wave.",
-                    shortcut: nil
-                )
+                    Divider().foregroundStyle(Wave.colors.border)
 
-                QuickActionRow(
-                    icon: "slider.horizontal.3",
-                    title: "Choose a rewrite level",
-                    subtitle: "Set how aggressively Wave cleans up your text.",
-                    shortcut: nil
-                )
+                    WaveListItem(
+                        title: "Customize your shortcuts",
+                        subtitle: "Change the keyboard shortcuts for Wave.",
+                        leading: "keyboard"
+                    )
 
-                QuickActionRow(
-                    icon: "book",
-                    title: "Add vocabulary",
-                    subtitle: "Teach Wave custom words, names, or industry terms.",
-                    shortcut: nil
-                )
+                    Divider().foregroundStyle(Wave.colors.border)
+
+                    WaveListItem(
+                        title: "Choose a rewrite level",
+                        subtitle: "Set how aggressively Wave cleans up your text.",
+                        leading: "slider.horizontal.3"
+                    )
+
+                    Divider().foregroundStyle(Wave.colors.border)
+
+                    WaveListItem(
+                        title: "Add vocabulary",
+                        subtitle: "Teach Wave custom words, names, or industry terms.",
+                        leading: "book"
+                    )
+                }
             }
-            .cardStyle()
         }
     }
 
     // MARK: - What's New
 
     private var whatsNew: some View {
-        VStack(alignment: .leading, spacing: WaveTheme.spacingMD) {
-            HStack {
-                Text("What's new?")
-                    .sectionHeader()
-                Spacer()
-                Button("View all changes") {}
-                    .buttonStyle(.plain)
-                    .font(.system(size: 12))
-                    .foregroundStyle(WaveTheme.accent)
-            }
+        WaveCard(style: .hero) {
+            VStack(alignment: .leading, spacing: Wave.spacing.s16) {
+                WaveSectionHeader(
+                    "What's New",
+                    trailing: AnyView(
+                        WaveButton("View all changes", kind: .ghost) {}
+                    )
+                )
 
-            VStack(alignment: .leading, spacing: WaveTheme.spacingSM) {
-                HStack(alignment: .top) {
+                HStack(alignment: .top, spacing: Wave.spacing.s12) {
                     Text(formattedDate(Date()))
-                        .font(.system(size: 12))
-                        .foregroundStyle(WaveTheme.textTertiary)
+                        .waveFont(Wave.font.captionLight)
+                        .foregroundStyle(Wave.colors.textTertiary)
                         .frame(width: 60, alignment: .leading)
 
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: Wave.spacing.s4) {
                         Text("Initial Release")
-                            .font(.system(size: 14, weight: .semibold))
+                            .waveFont(Wave.font.bodySemibold)
+                            .foregroundStyle(Wave.colors.textPrimary)
                         Text("Voice-to-text with AI cleanup. Deepgram + Whisper for transcription, Claude + GPT for rewriting.")
-                            .font(.system(size: 12))
-                            .foregroundStyle(WaveTheme.textSecondary)
-                        Button("Try it now") {}
-                            .buttonStyle(.plain)
-                            .font(.system(size: 12))
-                            .foregroundStyle(WaveTheme.accent)
-                            .padding(.top, 2)
+                            .waveFont(Wave.font.body)
+                            .foregroundStyle(Wave.colors.textSecondary)
+                        WaveButton("Try it now", kind: .ghost) {}
+                            .padding(.top, Wave.spacing.s2)
                     }
                 }
             }
-            .cardStyle()
         }
     }
 
@@ -139,61 +164,5 @@ struct HomeView: View {
         default: suffix = "th"
         }
         return "\(base)\(suffix)"
-    }
-}
-
-// MARK: - Subviews
-
-struct StatItem: View {
-    let value: String
-    let label: String
-
-    var body: some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(.system(size: 16, weight: .bold))
-                .monospacedDigit()
-                .foregroundStyle(WaveTheme.textPrimary)
-            Text(label)
-                .font(.system(size: 11))
-                .foregroundStyle(WaveTheme.textSecondary)
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-
-struct QuickActionRow: View {
-    let icon: String
-    let title: String
-    let subtitle: String
-    let shortcut: String?
-
-    var body: some View {
-        HStack(spacing: WaveTheme.spacingMD) {
-            Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundStyle(WaveTheme.textSecondary)
-                .frame(width: 24)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 13, weight: .semibold))
-                Text(subtitle)
-                    .font(.system(size: 12))
-                    .foregroundStyle(WaveTheme.textSecondary)
-            }
-
-            Spacer()
-
-            if let shortcut {
-                Text(shortcut)
-                    .font(.system(size: 11, design: .monospaced))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(WaveTheme.surfaceSecondary)
-                    .clipShape(RoundedRectangle(cornerRadius: WaveTheme.radiusInner))
-            }
-        }
-        .padding(.vertical, WaveTheme.spacingSM)
     }
 }
