@@ -8,19 +8,12 @@ struct MainWindowView: View {
     var body: some View {
         NavigationSplitView {
             SidebarView(appState: appState)
+                .background(Wave.colors.background)
+                .frame(minWidth: Wave.window.sidebarWidth)
         } detail: {
             ZStack {
-                // Background with subtle bottom glow
-                WaveTheme.background
+                Wave.colors.surfaceSecondary
                     .ignoresSafeArea()
-
-                RadialGradient(
-                    colors: [WaveTheme.glowColor, .clear],
-                    center: .bottom,
-                    startRadius: 0,
-                    endRadius: 300
-                )
-                .ignoresSafeArea()
 
                 detailView
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -28,14 +21,16 @@ struct MainWindowView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .frame(
-            minWidth: WaveTheme.windowWidth,
-            minHeight: WaveTheme.windowHeight
+            minWidth: Wave.window.mainWidth,
+            minHeight: Wave.window.mainHeight
         )
         .toolbar {
-            ToolbarItem(placement: .automatic) {
+            ToolbarItem(placement: .primaryAction) {
                 MicrophoneSelector()
             }
         }
+        .onAppear { appState.isMainWindowOpen = true }
+        .onDisappear { appState.isMainWindowOpen = false }
     }
 
     @ViewBuilder
@@ -75,18 +70,18 @@ struct MicrophoneSelector: View {
                 }
             }
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: Wave.spacing.s6) {
                 Text("\(selectedDevice) (Default)")
-                    .font(.system(size: 11))
+                    .waveFont(Wave.font.captionLight)
                     .lineLimit(1)
                 Image(systemName: "display")
-                    .font(.system(size: 10))
+                    .waveFont(Wave.font.captionLight)
             }
-            .foregroundStyle(WaveTheme.textSecondary)
-            .padding(.horizontal, WaveTheme.spacingMD)
-            .padding(.vertical, WaveTheme.spacingSM)
-            .background(WaveTheme.surfacePrimary)
-            .clipShape(RoundedRectangle(cornerRadius: WaveTheme.radiusSM))
+            .foregroundStyle(Wave.colors.textSecondary)
+            .padding(.horizontal, Wave.spacing.s12)
+            .padding(.vertical, Wave.spacing.s8)
+            .background(Wave.colors.surfacePrimary)
+            .clipShape(RoundedRectangle(cornerRadius: Wave.radius.r6))
         }
         .menuStyle(.borderlessButton)
         .onAppear {
