@@ -4,49 +4,51 @@ struct ModelCard: View {
     let model: AIModelConfig
     let isActive: Bool
     let onSelect: () -> Void
-    let onConfigure: () -> Void
 
     var body: some View {
         Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: WaveTheme.spacingSM) {
-                HStack {
-                    ProviderIcon(model: model)
-                        .frame(width: 28, height: 28)
-                        .background(model.providerColor.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: WaveTheme.radiusInner))
+            WaveCard(style: .standard, padding: Wave.spacing.s16) {
+                VStack(alignment: .leading, spacing: Wave.spacing.s12) {
+                    // Top row: provider icon + active badge
+                    HStack(alignment: .center, spacing: Wave.spacing.s8) {
+                        ProviderIcon(model: model, size: 20)
+                            .frame(width: 32, height: 32)
+                            .background(model.providerColor.opacity(0.12))
+                            .clipShape(RoundedRectangle(cornerRadius: Wave.radius.r8))
 
-                    Text(model.name)
-                        .font(.system(size: 13, weight: .semibold))
-                        .lineLimit(1)
+                        Spacer()
 
-                    Spacer()
-
-                    if isActive {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                            .font(.system(size: 16))
+                        if isActive {
+                            WavePillBadge("Active", tone: .info)
+                        }
                     }
 
-                    Button {
-                        onConfigure()
-                    } label: {
-                        Image(systemName: "key.fill")
-                            .foregroundStyle(WaveTheme.textTertiary)
-                            .font(.system(size: 11))
+                    // Middle: title + description
+                    VStack(alignment: .leading, spacing: Wave.spacing.s4) {
+                        Text(model.name)
+                            .waveFont(Wave.font.cardTitle)
+                            .foregroundStyle(Wave.colors.textPrimary)
+                            .lineLimit(2)
+
+                        Text(model.description)
+                            .waveFont(Wave.font.body)
+                            .foregroundStyle(Wave.colors.textSecondary)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .buttonStyle(.plain)
+
+                    Spacer(minLength: 0)
+
+                    // Bottom: configure ghost link
+                    Text("Configure")
+                        .waveFont(Wave.font.bodyMedium)
+                        .foregroundStyle(Wave.colors.accent)
                 }
-
-                Text(model.description)
-                    .font(.system(size: 11))
-                    .foregroundStyle(WaveTheme.textSecondary)
-                    .lineLimit(3)
+                .frame(width: 208, height: 168, alignment: .leading)
             }
-            .frame(width: 220)
-            .cardStyle()
             .overlay(
-                RoundedRectangle(cornerRadius: WaveTheme.radiusMD)
-                    .stroke(isActive ? .green.opacity(0.5) : .clear, lineWidth: 1.5)
+                RoundedRectangle(cornerRadius: Wave.radius.r12)
+                    .stroke(isActive ? Wave.colors.accent : Color.clear, lineWidth: 2)
             )
         }
         .buttonStyle(.plain)

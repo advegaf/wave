@@ -5,6 +5,7 @@ struct ModelsLibraryView: View {
     var coordinator: RecordingCoordinator
     @State private var selectedModel: AIModelConfig?
     @State private var isRedownloading = false
+
     private var voiceModels: [AIModelConfig] {
         AIModelConfig.defaultModels.filter { $0.modelType == .voice }
     }
@@ -15,7 +16,9 @@ struct ModelsLibraryView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: WaveTheme.spacingXL) {
+            VStack(alignment: .leading, spacing: Wave.spacing.s24) {
+                WaveSectionHeader("Models Library")
+
                 // Featured combo carousel
                 featuredCarousel
 
@@ -36,68 +39,141 @@ struct ModelsLibraryView: View {
                 // WhisperKit local model status
                 whisperKitStatusSection
             }
-            .padding(WaveTheme.spacingXL)
+            .padding(Wave.spacing.s24)
         }
-        .sheet(item: $selectedModel) { model in
-            ModelDetailSheet(model: model)
+    }
+
+    // MARK: - Featured Carousel
+
+    private var featuredCarousel: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Wave.spacing.s12) {
+                heroCard(
+                    title: "Best Accuracy",
+                    subtitle: "Whisper + Claude",
+                    description: "Highest quality transcription and rewriting",
+                    accentColor: .purple
+                )
+
+                heroCard(
+                    title: "Fastest",
+                    subtitle: "Deepgram + GPT",
+                    description: "Low latency real-time performance",
+                    accentColor: .orange
+                )
+
+                heroCard(
+                    title: "Budget",
+                    subtitle: "Deepgram + GPT-mini",
+                    description: "Cost-effective for everyday use",
+                    accentColor: .green
+                )
+            }
+        }
+        .scrollTargetBehavior(.viewAligned)
+    }
+
+    private func heroCard(
+        title: String,
+        subtitle: String,
+        description: String,
+        accentColor: Color
+    ) -> some View {
+        WaveCard(style: .hero, padding: Wave.spacing.s16) {
+            VStack(alignment: .leading, spacing: Wave.spacing.s8) {
+                Text(title)
+                    .waveFont(Wave.font.caption)
+                    .foregroundStyle(accentColor)
+
+                Text(subtitle)
+                    .waveFont(Wave.font.sectionHeading)
+                    .foregroundStyle(Wave.colors.textPrimary)
+
+                Text(description)
+                    .waveFont(Wave.font.body)
+                    .foregroundStyle(Wave.colors.textSecondary)
+                    .lineLimit(2)
+
+                Spacer(minLength: 0)
+            }
+            .frame(width: 208, height: 88, alignment: .leading)
+        }
+    }
+
+    // MARK: - Model Section
+
+    private func modelSection(title: String, description: String, models: [AIModelConfig]) -> some View {
+        VStack(alignment: .leading, spacing: Wave.spacing.s8) {
+            WaveSectionHeader(title, subtitle: description)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Wave.spacing.s12) {
+                    ForEach(models, id: \.id) { model in
+                        ModelCard(
+                            model: model,
+                            isActive: isModelActive(model),
+                            onSelect: { activateModel(model) }
+                        )
+                    }
+                }
+            }
         }
     }
 
     // MARK: - WhisperKit Status
 
     private var whisperKitStatusSection: some View {
-        VStack(alignment: .leading, spacing: WaveTheme.spacingSM) {
-            Text("Local Voice Model")
-                .font(.system(size: 16, weight: .bold))
+        WaveCard(style: .standard) {
+            VStack(alignment: .leading, spacing: Wave.spacing.s12) {
+                Text("Local Voice Model")
+                    .waveFont(Wave.font.cardTitle)
+                    .foregroundStyle(Wave.colors.textPrimary)
 
-            Text("WhisperKit runs speech recognition entirely on your Mac — no network calls required.")
-                .font(.system(size: 13))
-                .foregroundStyle(WaveTheme.textSecondary)
+                Text("WhisperKit runs speech recognition entirely on your Mac — no network calls required.")
+                    .waveFont(Wave.font.body)
+                    .foregroundStyle(Wave.colors.textSecondary)
 
-            HStack(spacing: WaveTheme.spacingMD) {
-                // Status indicator
-                HStack(spacing: WaveTheme.spacingSM) {
-                    Circle()
-                        .fill(whisperKitStatusColor)
-                        .frame(width: 8, height: 8)
-                    Text(whisperKitStatusText)
-                        .font(.system(size: 13))
-                        .foregroundStyle(WaveTheme.textSecondary)
-                }
-
-                Spacer()
-
-                if isRedownloading {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("Downloading...")
-                        .font(.system(size: 12))
-                        .foregroundStyle(WaveTheme.textSecondary)
-                } else {
-                    Button("Re-download Model") {
-                        redownloadModel()
+                HStack(spacing: Wave.spacing.s12) {
+                    // Status indicator
+                    HStack(spacing: Wave.spacing.s8) {
+                        Circle()
+                            .fill(whisperKitStatusColor)
+                            .frame(width: 8, height: 8)
+                        Text(whisperKitStatusText)
+                            .waveFont(Wave.font.body)
+                            .foregroundStyle(Wave.colors.textSecondary)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                }
-            }
-            .padding(WaveTheme.spacingMD)
-            .background(WaveTheme.surfaceSecondary.opacity(0.5))
-            .clipShape(RoundedRectangle(cornerRadius: WaveTheme.radiusInner))
 
-            if let error = appState.whisperKitError {
-                Text(error)
-                    .font(.system(size: 12))
-                    .foregroundStyle(WaveTheme.destructive)
-                    .padding(.top, 2)
+                    Spacer()
+
+                    if isRedownloading {
+                        HStack(spacing: Wave.spacing.s8) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Downloading...")
+                                .waveFont(Wave.font.caption)
+                                .foregroundStyle(Wave.colors.textSecondary)
+                        }
+                    } else {
+                        WaveButton("Re-download", kind: .secondary) {
+                            redownloadModel()
+                        }
+                    }
+                }
+
+                if let error = appState.whisperKitError {
+                    Text(error)
+                        .waveFont(Wave.font.caption)
+                        .foregroundStyle(Wave.colors.destructive)
+                }
             }
         }
     }
 
     private var whisperKitStatusColor: Color {
-        if appState.isWhisperKitReady { return .green }
-        if appState.whisperKitError != nil { return .red }
-        return .orange
+        if appState.isWhisperKitReady { return Wave.colors.success }
+        if appState.whisperKitError != nil { return Wave.colors.destructive }
+        return Wave.colors.warning
     }
 
     private var whisperKitStatusText: String {
@@ -111,9 +187,7 @@ struct ModelsLibraryView: View {
         appState.whisperKitError = nil
         coordinator.clearWhisperKitCache()
         coordinator.preloadWhisperModel(appState: appState)
-        // Monitor for completion
         Task {
-            // Poll until state changes (preload runs in its own Task)
             while !appState.isWhisperKitReady && appState.whisperKitError == nil {
                 try? await Task.sleep(for: .milliseconds(500))
             }
@@ -121,46 +195,10 @@ struct ModelsLibraryView: View {
         }
     }
 
-    // MARK: - Featured Carousel
-
-    private var featuredCarousel: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: WaveTheme.spacingMD) {
-                RecommendedComboCard(
-                    title: "Best Accuracy",
-                    subtitle: "Whisper + Claude",
-                    description: "Highest quality transcription and rewriting",
-                    tintColor: .purple.opacity(0.15),
-                    accentColor: .purple
-                )
-
-                RecommendedComboCard(
-                    title: "Fastest",
-                    subtitle: "Deepgram + GPT",
-                    description: "Low latency real-time performance",
-                    tintColor: .orange.opacity(0.15),
-                    accentColor: .orange
-                )
-
-                RecommendedComboCard(
-                    title: "Budget",
-                    subtitle: "Deepgram + GPT-mini",
-                    description: "Cost-effective for everyday use",
-                    tintColor: .green.opacity(0.15),
-                    accentColor: .green
-                )
-            }
-        }
-        .scrollTargetBehavior(.viewAligned)
-    }
-
     // MARK: - Model Selection
 
     private func isModelActive(_ model: AIModelConfig) -> Bool {
-        // WhisperKit voice model is the only one and is always implicitly active.
         if model.modelType == .voice { return true }
-        // Language models are active when their LocalLLM id matches the
-        // user's selected id in AppState.
         if let id = model.localLLMId {
             return appState.selectedLocalLLMModelId == id
         }
@@ -173,154 +211,4 @@ struct ModelsLibraryView: View {
         appState.saveToPreferences()
         coordinator.selectedLocalLLMModelId = id
     }
-
-    // MARK: - Model Section
-
-    private func modelSection(title: String, description: String, models: [AIModelConfig]) -> some View {
-        VStack(alignment: .leading, spacing: WaveTheme.spacingSM) {
-            HStack {
-                Text(title)
-                    .font(.system(size: 16, weight: .bold))
-                Spacer()
-                Button("View all") {}
-                    .buttonStyle(.plain)
-                    .font(.system(size: 12))
-                    .foregroundStyle(WaveTheme.textSecondary)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10))
-                    .foregroundStyle(WaveTheme.textTertiary)
-            }
-
-            Text(description)
-                .font(.system(size: 13))
-                .foregroundStyle(WaveTheme.textSecondary)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: WaveTheme.spacingMD) {
-                    ForEach(models, id: \.id) { model in
-                        ModelCard(
-                            model: model,
-                            isActive: isModelActive(model),
-                            onSelect: { activateModel(model) },
-                            onConfigure: { selectedModel = model }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Recommended Combo Card
-
-struct RecommendedComboCard: View {
-    let title: String
-    let subtitle: String
-    let description: String
-    let tintColor: Color
-    let accentColor: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: WaveTheme.spacingSM) {
-            Text(title)
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(accentColor)
-            Text(subtitle)
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(WaveTheme.textPrimary)
-            Text(description)
-                .font(.system(size: 12))
-                .foregroundStyle(WaveTheme.textSecondary)
-        }
-        .padding(WaveTheme.spacingLG)
-        .frame(width: 240, height: 120, alignment: .leading)
-        .background(tintColor)
-        .clipShape(RoundedRectangle(cornerRadius: WaveTheme.radiusMD))
-        .shadow(color: .black.opacity(0.3), radius: 1.5, x: 0, y: 1)
-    }
-}
-
-// MARK: - Model Detail Sheet
-
-struct ModelDetailSheet: View {
-    let model: AIModelConfig
-    @Environment(\.dismiss) private var dismiss
-    @State private var apiKey = ""
-    @State private var isSaving = false
-    @State private var saved = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: WaveTheme.spacingXL) {
-            // Header
-            HStack {
-                ProviderIcon(model: model, size: 20)
-                    .frame(width: 36, height: 36)
-                    .background(model.providerColor.opacity(0.15))
-                    .clipShape(RoundedRectangle(cornerRadius: WaveTheme.radiusInner))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(model.name)
-                        .font(.system(size: 16, weight: .bold))
-                    Text("by \(model.provider)")
-                        .font(.system(size: 12))
-                        .foregroundStyle(WaveTheme.textSecondary)
-                }
-
-                Spacer()
-
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 12))
-                        .foregroundStyle(WaveTheme.textTertiary)
-                        .frame(width: 24, height: 24)
-                        .background(WaveTheme.surfaceSecondary)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-            }
-
-            // Description
-            Text(model.description)
-                .font(.system(size: 13))
-                .foregroundStyle(WaveTheme.textSecondary)
-
-            Divider()
-
-            // API Key
-            VStack(alignment: .leading, spacing: WaveTheme.spacingSM) {
-                Text("\(model.provider) API Key")
-                    .font(.system(size: 13, weight: .medium))
-
-                SecureField("Enter your API key...", text: $apiKey)
-                    .textFieldStyle(.roundedBorder)
-
-                HStack {
-                    Button("Activate") {
-                        saveApiKey()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(apiKey.isEmpty)
-
-                    if saved {
-                        Label("Saved", systemImage: "checkmark.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.green)
-                    }
-                }
-            }
-        }
-        .padding(WaveTheme.spacingXL)
-        .frame(width: 400)
-        .onAppear { loadExistingKey() }
-    }
-
-    // API key management is gone with cloud providers. ModelDetailSheet
-    // gets a full rewrite in step 11 — these stubs only exist so the file
-    // compiles during the in-progress refactor.
-    private func loadExistingKey() {}
-    private func saveApiKey() {
-        saved = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { saved = false }
-    }
-
 }
