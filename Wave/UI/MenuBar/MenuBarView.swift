@@ -1,149 +1,160 @@
 import SwiftUI
 
 struct MenuBarView: View {
-    var appState: AppState
+    @Bindable var appState: AppState
     var coordinator: RecordingCoordinator
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Status
-            HStack {
+            // Status row
+            HStack(spacing: Wave.spacing.s8) {
                 Circle()
                     .fill(statusColor)
                     .frame(width: 8, height: 8)
-                Text(coordinator.state.statusText)
-                    .font(.system(size: 12, weight: .medium))
+                Text(statusText)
+                    .waveFont(Wave.font.caption)
+                    .foregroundStyle(Wave.colors.textSecondary)
                 Spacer()
             }
-            .padding(.horizontal, WaveTheme.spacingMD)
-            .padding(.vertical, WaveTheme.spacingSM)
+            .padding(.horizontal, Wave.spacing.s16)
+            .padding(.top, Wave.spacing.s12)
+            .padding(.bottom, Wave.spacing.s8)
 
-            Divider()
+            Divider().foregroundStyle(Wave.colors.border)
 
-            // Record button
-            Button {
-                coordinator.toggleRecording()
-            } label: {
-                HStack {
-                    Image(systemName: coordinator.state.isActive ? "stop.fill" : "record.circle")
-                        .foregroundStyle(coordinator.state.isActive ? .red : WaveTheme.textPrimary)
-                    Text(coordinator.state.isActive ? "Stop Recording" : "Start Recording")
+            // Start/stop recording
+            Button(action: { coordinator.toggleRecording() }) {
+                HStack(spacing: Wave.spacing.s8) {
+                    Image(systemName: coordinator.state == .recording ? "stop.fill" : "record.circle")
+                    Text(coordinator.state == .recording ? "Stop Recording" : "Start Recording")
                     Spacer()
                     Text("⌘⇧Space")
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundStyle(WaveTheme.textTertiary)
+                        .waveFont(Wave.font.micro)
+                        .foregroundStyle(Wave.colors.textTertiary)
                 }
+                .waveFont(Wave.font.nav)
+                .foregroundStyle(Wave.colors.textPrimary)
+                .padding(.horizontal, Wave.spacing.s16)
+                .padding(.vertical, Wave.spacing.s10)
             }
             .buttonStyle(.plain)
-            .padding(.horizontal, WaveTheme.spacingMD)
-            .padding(.vertical, WaveTheme.spacingSM)
 
-            Divider()
+            Divider().foregroundStyle(Wave.colors.border)
 
-            // Rewrite level
-            HStack {
-                Text("Rewrite:")
-                    .font(.system(size: 11))
-                    .foregroundStyle(WaveTheme.textSecondary)
-                Picker("", selection: Binding(
+            // Rewrite level picker
+            HStack(spacing: Wave.spacing.s12) {
+                Text("Rewrite")
+                    .waveFont(Wave.font.caption)
+                    .foregroundStyle(Wave.colors.textSecondary)
+                WaveSegmentedControl(selection: Binding(
                     get: { appState.selectedRewriteLevel },
                     set: { appState.selectedRewriteLevel = $0 }
-                )) {
-                    ForEach(RewriteLevel.allCases, id: \.self) { level in
-                        Text(level.rawValue).tag(level)
-                    }
-                }
-                .pickerStyle(.segmented)
+                ))
                 .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, WaveTheme.spacingMD)
-            .padding(.vertical, WaveTheme.spacingSM)
+            .padding(.horizontal, Wave.spacing.s16)
+            .padding(.vertical, Wave.spacing.s10)
 
-            // Last transcription
-            if let lastText = coordinator.lastCleanedText {
-                Divider()
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Last transcription:")
-                        .font(.system(size: 10))
-                        .foregroundStyle(WaveTheme.textTertiary)
-                    Text(lastText.prefix(100) + (lastText.count > 100 ? "..." : ""))
-                        .font(.system(size: 11))
-                        .foregroundStyle(WaveTheme.textSecondary)
+            // Last transcription preview
+            if let last = coordinator.lastCleanedText, !last.isEmpty {
+                Divider().foregroundStyle(Wave.colors.border)
+                VStack(alignment: .leading, spacing: Wave.spacing.s6) {
+                    HStack {
+                        Text("Last transcription")
+                            .waveFont(Wave.font.caption)
+                            .foregroundStyle(Wave.colors.textSecondary)
+                        Spacer()
+                        Button(action: { copyLast(last) }) {
+                            Image(systemName: "doc.on.doc")
+                                .foregroundStyle(Wave.colors.textSecondary)
+                        }.buttonStyle(.plain)
+                    }
+                    Text(preview(of: last))
+                        .waveFont(Wave.font.captionLight)
+                        .foregroundStyle(Wave.colors.textPrimary)
                         .lineLimit(3)
                 }
-                .padding(.horizontal, WaveTheme.spacingMD)
-                .padding(.vertical, WaveTheme.spacingSM)
-
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(lastText, forType: .string)
-                } label: {
-                    HStack {
-                        Image(systemName: "doc.on.doc")
-                        Text("Copy Last Transcript")
-                        Spacer()
-                    }
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, WaveTheme.spacingMD)
-                .padding(.vertical, WaveTheme.spacingSM)
+                .padding(.horizontal, Wave.spacing.s16)
+                .padding(.vertical, Wave.spacing.s10)
             }
 
-            // Error
             if let error = coordinator.lastError {
-                Divider()
                 Text(error)
-                    .font(.system(size: 10))
-                    .foregroundStyle(WaveTheme.destructive)
+                    .waveFont(Wave.font.captionLight)
+                    .foregroundStyle(Wave.colors.destructive)
                     .lineLimit(2)
-                    .padding(.horizontal, WaveTheme.spacingMD)
-                    .padding(.vertical, WaveTheme.spacingSM)
+                    .padding(.horizontal, Wave.spacing.s16)
+                    .padding(.bottom, Wave.spacing.s8)
             }
 
-            Divider()
+            Divider().foregroundStyle(Wave.colors.border)
 
-            // Open app
-            Button {
-                openWindow(id: "main")
-                NSApp.activate(ignoringOtherApps: true)
-            } label: {
+            // Open / Quit
+            Button(action: openMainWindow) {
                 HStack {
+                    Image(systemName: "rectangle.stack")
                     Text("Open Wave")
                     Spacer()
                 }
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, WaveTheme.spacingMD)
-            .padding(.vertical, WaveTheme.spacingSM)
+                .waveFont(Wave.font.nav)
+                .foregroundStyle(Wave.colors.textPrimary)
+                .padding(.horizontal, Wave.spacing.s16)
+                .padding(.vertical, Wave.spacing.s10)
+            }.buttonStyle(.plain)
 
-            Divider()
-
-            // Quit
-            Button {
-                NSApplication.shared.terminate(nil)
-            } label: {
+            Button(action: { NSApp.terminate(nil) }) {
                 HStack {
+                    Image(systemName: "power")
                     Text("Quit Wave")
                     Spacer()
                     Text("⌘Q")
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundStyle(WaveTheme.textTertiary)
+                        .waveFont(Wave.font.micro)
+                        .foregroundStyle(Wave.colors.textTertiary)
                 }
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, WaveTheme.spacingMD)
-            .padding(.vertical, WaveTheme.spacingSM)
+                .waveFont(Wave.font.nav)
+                .foregroundStyle(Wave.colors.textPrimary)
+                .padding(.horizontal, Wave.spacing.s16)
+                .padding(.vertical, Wave.spacing.s10)
+            }.buttonStyle(.plain)
         }
         .frame(width: 340)
+        .background(Wave.colors.surfacePrimary)
     }
+
+    // MARK: - Helpers
 
     private var statusColor: Color {
         switch coordinator.state {
-        case .idle: .green
-        case .recording: .red
-        case .processing, .activating, .pasting: .orange
-        case .cancelling: .gray
+        case .idle:       return Wave.colors.success
+        case .recording:  return Wave.colors.destructive
+        case .processing, .activating, .pasting: return Wave.colors.warning
+        case .cancelling: return Wave.colors.textTertiary
         }
+    }
+
+    private var statusText: String {
+        switch coordinator.state {
+        case .idle:       return "Ready"
+        case .recording:  return "Recording"
+        case .processing: return "Processing"
+        case .activating: return "Activating"
+        case .pasting:    return "Pasting"
+        case .cancelling: return "Cancelling"
+        }
+    }
+
+    private func preview(of text: String) -> String {
+        text.count > 100 ? String(text.prefix(100)) + "..." : text
+    }
+
+    private func copyLast(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    private func openMainWindow() {
+        openWindow(id: "main")
+        NSApp.activate(ignoringOtherApps: true)
     }
 }
