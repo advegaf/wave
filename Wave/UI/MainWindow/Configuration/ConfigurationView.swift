@@ -6,188 +6,101 @@ struct ConfigurationView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: WaveTheme.spacingXL) {
+            VStack(alignment: .leading, spacing: Wave.spacing.s24) {
                 appearanceSection
                 shortcutsSection
                 applicationSection
             }
-            .padding(WaveTheme.spacingXL)
+            .padding(Wave.spacing.s24)
         }
         .onChange(of: appState.overlayStyle) { appState.saveToPreferences() }
         .onChange(of: appState.overlayPositionY) { appState.saveToPreferences() }
     }
 
-    // MARK: - Appearance (merged overlay style + position)
+    // MARK: - Appearance
 
     private var appearanceSection: some View {
-        VStack(alignment: .leading, spacing: WaveTheme.spacingMD) {
-            Text("Appearance")
-                .sectionHeader()
+        WaveCard {
+            VStack(alignment: .leading, spacing: Wave.spacing.s16) {
+                WaveSectionHeader("Appearance")
 
-            VStack(alignment: .leading, spacing: WaveTheme.spacingLG) {
+                Divider()
+
                 // Style picker
-                VStack(alignment: .leading, spacing: WaveTheme.spacingSM) {
+                VStack(alignment: .leading, spacing: Wave.spacing.s8) {
                     Text("Style")
-                        .font(.system(size: 13, weight: .medium))
+                        .waveFont(Wave.font.bodyMedium)
+                        .foregroundStyle(Wave.colors.textPrimary)
 
-                    HStack(spacing: WaveTheme.spacingMD) {
-                        OverlayStyleOption(
+                    HStack(spacing: Wave.spacing.s12) {
+                        overlayStyleCard(
                             label: "Classic",
-                            isSelected: appState.overlayStyle == .full,
-                            action: { appState.overlayStyle = .full }
-                        ) {
-                            WaveformFullPreview()
-                        }
-                        OverlayStyleOption(
+                            style: .full,
+                            preview: { WaveformFullPreview() }
+                        )
+                        overlayStyleCard(
                             label: "Mini",
-                            isSelected: appState.overlayStyle == .mini,
-                            action: { appState.overlayStyle = .mini }
-                        ) {
-                            WaveformMiniPreview()
-                        }
+                            style: .mini,
+                            preview: { WaveformMiniPreview() }
+                        )
+                        Spacer()
                     }
                 }
 
                 Divider()
 
                 // Position
-                VStack(alignment: .leading, spacing: WaveTheme.spacingMD) {
-                    Text("Waveform height above dock")
-                        .font(.system(size: 13, weight: .medium))
-
-                    OverlayPositionPicker(positionY: $appState.overlayPositionY)
-
-                    HStack {
-                        Text("Distance: \(Int(appState.overlayPositionY))px above dock")
-                            .font(.system(size: 11))
-                            .monospacedDigit()
-                            .foregroundStyle(WaveTheme.textSecondary)
-                        Spacer()
-                    }
+                WaveSettingRow("Position", subtitle: "Distance above dock") {
+                    EmptyView()
                 }
+
+                overlayPositionContent
             }
-            .cardStyle()
         }
     }
 
-    // MARK: - Shortcuts
-
-    private var shortcutsSection: some View {
-        VStack(alignment: .leading, spacing: WaveTheme.spacingMD) {
-            Text("Keyboard Shortcuts")
-                .sectionHeader()
-
-            VStack(spacing: 1) {
-                ShortcutRow(
-                    title: "Toggle Recording",
-                    subtitle: "Starts and stops recordings"
-                ) {
-                    KeyboardShortcuts.Recorder(for: .toggleRecording)
-                }
-
-                Divider().padding(.horizontal, WaveTheme.spacingMD)
-
-                ShortcutRow(
-                    title: "Cancel Recording",
-                    subtitle: "Discards the active recording"
-                ) {
-                    Text("esc")
-                        .font(.system(size: 11, design: .monospaced))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(WaveTheme.surfaceSecondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                }
-
-                Divider().padding(.horizontal, WaveTheme.spacingMD)
-
-                ShortcutRow(
-                    title: "Change rewrite level",
-                    subtitle: "Cycles through rewrite levels"
-                ) {
-                    KeyboardShortcuts.Recorder(for: .changeRewriteLevel)
-                }
-
-                Divider().padding(.horizontal, WaveTheme.spacingMD)
-
-                ShortcutRow(
-                    title: "Push to Talk",
-                    subtitle: "Hold to record, release when done"
-                ) {
-                    KeyboardShortcuts.Recorder(for: .pushToTalk)
-                }
-
-                Divider().padding(.horizontal, WaveTheme.spacingMD)
-
-                ShortcutRow(
-                    title: "Mouse shortcut",
-                    subtitle: "Tap to toggle, or hold and release when done"
-                ) {
-                    Text("Record shortcut")
-                        .font(.system(size: 12))
-                        .foregroundStyle(WaveTheme.textTertiary)
-                }
+    @ViewBuilder
+    private func overlayStyleCard<Preview: View>(
+        label: String,
+        style: OverlayStyle,
+        @ViewBuilder preview: () -> Preview
+    ) -> some View {
+        let isSelected = appState.overlayStyle == style
+        Button(action: { appState.overlayStyle = style }) {
+            VStack(spacing: Wave.spacing.s8) {
+                preview()
+                    .frame(width: 80, height: 50)
+                    .background(Wave.colors.surfaceSecondary)
+                    .clipShape(RoundedRectangle(cornerRadius: Wave.radius.r8))
+                Text(label)
+                    .waveFont(Wave.font.caption)
+                    .foregroundStyle(isSelected ? Wave.colors.accent : Wave.colors.textSecondary)
             }
-            .cardStyle()
+            .padding(Wave.spacing.s8)
+            .background(Wave.colors.surfacePrimary)
+            .clipShape(RoundedRectangle(cornerRadius: Wave.radius.r12))
+            .overlay(
+                RoundedRectangle(cornerRadius: Wave.radius.r12)
+                    .stroke(isSelected ? Wave.colors.accent : Wave.colors.border, lineWidth: isSelected ? 2 : 1)
+            )
         }
+        .buttonStyle(.plain)
     }
 
-    // MARK: - Application
-
-    private var applicationSection: some View {
-        VStack(alignment: .leading, spacing: WaveTheme.spacingMD) {
-            Text("Application")
-                .sectionHeader()
-
-            VStack(spacing: 1) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Launch at login")
-                            .font(.system(size: 13, weight: .medium))
-                    }
-                    HelpTooltipIcon(text: "Start Wave automatically when you log in")
-                    Spacer()
-                    Toggle("", isOn: .init(
-                        get: { LaunchAtLoginManager.shared.isEnabled },
-                        set: { LaunchAtLoginManager.shared.isEnabled = $0 }
-                    ))
-                    .toggleStyle(.switch)
-                }
-                .padding(.vertical, WaveTheme.spacingSM)
-            }
-            .cardStyle()
-        }
-    }
-}
-
-// MARK: - Overlay Position Picker
-
-struct OverlayPositionPicker: View {
-    @Binding var positionY: CGFloat
-
-    private let positions: [(label: String, value: CGFloat)] = [
-        ("Below dock", -30),
-        ("On dock", -10),
-        ("Dock level", 0),
-        ("Just above", 10),
-        ("Low", 30),
-        ("Center", 120),
-    ]
-
-    var body: some View {
-        VStack(spacing: WaveTheme.spacingSM) {
+    private var overlayPositionContent: some View {
+        VStack(alignment: .leading, spacing: Wave.spacing.s12) {
             // Visual screen representation
             ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(WaveTheme.surfaceSecondary)
+                RoundedRectangle(cornerRadius: Wave.radius.r8)
+                    .fill(Wave.colors.surfaceSecondary)
                     .frame(height: 140)
 
                 VStack {
                     Spacer()
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(WaveTheme.border)
+                    RoundedRectangle(cornerRadius: Wave.radius.r4)
+                        .fill(Wave.colors.border)
                         .frame(width: 120, height: 6)
-                        .padding(.bottom, 8)
+                        .padding(.bottom, Wave.spacing.s8)
                 }
                 .frame(height: 140)
 
@@ -197,105 +110,131 @@ struct OverlayPositionPicker: View {
                         let heights: [CGFloat] = [4, 7, 5, 9, 6, 10, 8, 5, 9, 7, 10, 6, 8, 4, 7]
                         ForEach(0..<15, id: \.self) { i in
                             RoundedRectangle(cornerRadius: 1)
-                                .fill(WaveTheme.accent)
+                                .fill(Wave.colors.accent)
                                 .frame(width: 2, height: heights[i])
                         }
                     }
-                    .padding(.bottom, max(2, 14 + positionY / 3))
+                    .padding(.bottom, max(2, 14 + appState.overlayPositionY / 3))
                 }
                 .frame(height: 140)
             }
 
-            // Position preset buttons
-            HStack(spacing: WaveTheme.spacingXS) {
-                ForEach(positions, id: \.value) { pos in
-                    Button {
-                        withAnimation(.spring(duration: 0.3)) {
-                            positionY = pos.value
+            // Preset buttons
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Wave.spacing.s4) {
+                    ForEach(overlayPositions, id: \.value) { pos in
+                        Button {
+                            withAnimation(.spring(duration: 0.3)) {
+                                appState.overlayPositionY = pos.value
+                            }
+                        } label: {
+                            Text(pos.label)
+                                .waveFont(Wave.font.micro)
+                                .padding(.horizontal, Wave.spacing.s6)
+                                .padding(.vertical, Wave.spacing.s4)
+                                .background(appState.overlayPositionY == pos.value ? Wave.colors.accent.opacity(0.15) : Wave.colors.surfaceSecondary)
+                                .foregroundStyle(appState.overlayPositionY == pos.value ? Wave.colors.accent : Wave.colors.textSecondary)
+                                .clipShape(RoundedRectangle(cornerRadius: Wave.radius.r4))
                         }
-                    } label: {
-                        Text(pos.label)
-                            .font(.system(size: 10))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 4)
-                            .background(positionY == pos.value ? WaveTheme.accent.opacity(0.2) : WaveTheme.surfaceSecondary)
-                            .foregroundStyle(positionY == pos.value ? WaveTheme.accent : WaveTheme.textSecondary)
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
 
-            Slider(value: $positionY, in: -50...300, step: 5)
-                .tint(WaveTheme.accent)
-        }
-    }
-}
-
-// MARK: - Subviews
-
-struct OverlayStyleOption<Preview: View>: View {
-    let label: String
-    let isSelected: Bool
-    let action: () -> Void
-    @ViewBuilder let preview: () -> Preview
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                preview()
-                    .frame(width: 80, height: 50)
-                    .background(WaveTheme.surfaceSecondary)
-                    .clipShape(RoundedRectangle(cornerRadius: WaveTheme.radiusInner))
-                Text(label)
-                    .font(.system(size: 12))
-            }
-            .foregroundStyle(isSelected ? WaveTheme.accent : WaveTheme.textSecondary)
-            .overlay(
-                RoundedRectangle(cornerRadius: WaveTheme.radiusInner)
-                    .stroke(isSelected ? WaveTheme.accent : .clear, lineWidth: 2)
-                    .padding(-4)
+            // Dotted slider — WaveDottedSlider uses Double, overlayPositionY is CGFloat
+            WaveDottedSlider(
+                value: Binding(
+                    get: { Double(appState.overlayPositionY) },
+                    set: { appState.overlayPositionY = CGFloat($0) }
+                ),
+                range: -50...300,
+                step: 5
             )
+
+            Text("Distance: \(Int(appState.overlayPositionY))px above dock")
+                .waveFont(Wave.font.captionLight)
+                .foregroundStyle(Wave.colors.textSecondary)
+                .monospacedDigit()
         }
-        .buttonStyle(.plain)
     }
-}
 
-struct ShortcutRow<Content: View>: View {
-    let title: String
-    let subtitle: String
-    @ViewBuilder let content: () -> Content
+    private let overlayPositions: [(label: String, value: CGFloat)] = [
+        ("Below dock", -30),
+        ("On dock", -10),
+        ("Dock level", 0),
+        ("Just above", 10),
+        ("Low", 30),
+        ("Center", 120),
+    ]
 
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 13, weight: .medium))
-                Text(subtitle)
-                    .font(.system(size: 11))
-                    .foregroundStyle(WaveTheme.textSecondary)
+    // MARK: - Keyboard Shortcuts
+
+    private var shortcutsSection: some View {
+        WaveCard {
+            VStack(alignment: .leading, spacing: Wave.spacing.s4) {
+                WaveSectionHeader("Keyboard Shortcuts")
+
+                Divider()
+
+                WaveSettingRow("Toggle Recording", subtitle: "Starts and stops recordings") {
+                    KeyboardShortcuts.Recorder(for: .toggleRecording)
+                }
+
+                Divider()
+
+                WaveSettingRow("Cancel Recording", subtitle: "Discards the active recording") {
+                    Text("esc")
+                        .waveFont(Wave.font.captionLight)
+                        .padding(.horizontal, Wave.spacing.s8)
+                        .padding(.vertical, Wave.spacing.s4)
+                        .background(Wave.colors.surfaceSecondary)
+                        .clipShape(RoundedRectangle(cornerRadius: Wave.radius.r4))
+                        .foregroundStyle(Wave.colors.textPrimary)
+                }
+
+                Divider()
+
+                WaveSettingRow("Change rewrite level", subtitle: "Cycles through rewrite levels") {
+                    KeyboardShortcuts.Recorder(for: .changeRewriteLevel)
+                }
+
+                Divider()
+
+                WaveSettingRow("Push to Talk", subtitle: "Hold to record, release when done") {
+                    KeyboardShortcuts.Recorder(for: .pushToTalk)
+                }
+
+                Divider()
+
+                WaveSettingRow("Mouse shortcut", subtitle: "Tap to toggle, or hold and release when done") {
+                    Text("Record shortcut")
+                        .waveFont(Wave.font.caption)
+                        .foregroundStyle(Wave.colors.textTertiary)
+                }
             }
-            Spacer()
-            content()
         }
-        .padding(.vertical, WaveTheme.spacingSM)
     }
-}
 
-struct SettingsToggleRow: View {
-    let title: String
-    let helpText: String
-    @Binding var isOn: Bool
+    // MARK: - Application Settings
 
-    var body: some View {
-        HStack {
-            Text(title)
-                .font(.system(size: 13, weight: .medium))
-            HelpTooltipIcon(text: helpText)
-            Spacer()
-            Toggle("", isOn: $isOn)
-                .toggleStyle(.switch)
+    private var applicationSection: some View {
+        WaveCard {
+            VStack(alignment: .leading, spacing: Wave.spacing.s4) {
+                WaveSectionHeader("Application Settings")
+
+                Divider()
+
+                WaveSettingRow("Launch at Login", subtitle: "Start Wave when you log in") {
+                    HStack(spacing: Wave.spacing.s8) {
+                        WaveHelpTooltip(helpText: "Start Wave automatically when you log in")
+                        Toggle("", isOn: .init(
+                            get: { LaunchAtLoginManager.shared.isEnabled },
+                            set: { LaunchAtLoginManager.shared.isEnabled = $0 }
+                        ))
+                        .toggleStyle(.switch)
+                    }
+                }
+            }
         }
-        .padding(.vertical, WaveTheme.spacingSM)
     }
 }

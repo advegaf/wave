@@ -25,17 +25,19 @@ struct SoundView: View {
                 .sectionHeader()
 
             VStack(spacing: 1) {
-                SettingsToggleRow(
-                    title: "Automatically increase microphone volume",
-                    helpText: "Boosts input volume for better transcription accuracy",
-                    isOn: $appState.autoIncreaseVolume
-                )
+                WaveSettingRow("Automatically increase microphone volume") {
+                    HStack(spacing: Wave.spacing.s8) {
+                        WaveHelpTooltip(helpText: "Boosts input volume for better transcription accuracy")
+                        Toggle("", isOn: $appState.autoIncreaseVolume).toggleStyle(.switch)
+                    }
+                }
                 Divider().padding(.horizontal, WaveTheme.spacingMD)
-                SettingsToggleRow(
-                    title: "Silence removal",
-                    helpText: "Remove silent segments from audio before transcription",
-                    isOn: $appState.silenceRemoval
-                )
+                WaveSettingRow("Silence removal") {
+                    HStack(spacing: Wave.spacing.s8) {
+                        WaveHelpTooltip(helpText: "Remove silent segments from audio before transcription")
+                        Toggle("", isOn: $appState.silenceRemoval).toggleStyle(.switch)
+                    }
+                }
             }
             .cardStyle()
         }
@@ -72,11 +74,12 @@ struct SoundView: View {
                 .sectionHeader()
 
             VStack(spacing: WaveTheme.spacingSM) {
-                SettingsToggleRow(
-                    title: "Enable sound effects",
-                    helpText: "Play Siri-style beep when recording starts and stops",
-                    isOn: $appState.soundEffectsEnabled
-                )
+                WaveSettingRow("Enable sound effects") {
+                    HStack(spacing: Wave.spacing.s8) {
+                        WaveHelpTooltip(helpText: "Play Siri-style beep when recording starts and stops")
+                        Toggle("", isOn: $appState.soundEffectsEnabled).toggleStyle(.switch)
+                    }
+                }
 
                 if appState.soundEffectsEnabled {
                     Divider()
