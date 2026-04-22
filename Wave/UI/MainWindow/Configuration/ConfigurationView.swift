@@ -3,11 +3,15 @@ import KeyboardShortcuts
 
 struct ConfigurationView: View {
     @Bindable var appState: AppState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var previewController = OverlayWindowController()
+    @State private var previewLevelMonitor = AudioLevelMonitor()
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Wave.spacing.s24) {
                 appearanceSection
+                animationSection
                 shortcutsSection
                 applicationSection
             }
@@ -15,6 +19,8 @@ struct ConfigurationView: View {
         }
         .onChange(of: appState.overlayStyle) { appState.saveToPreferences() }
         .onChange(of: appState.overlayPositionY) { appState.saveToPreferences() }
+        .onChange(of: appState.overlayAnimationStyle) { appState.saveToPreferences() }
+        .onChange(of: appState.overlayAnimationSpeed) { appState.saveToPreferences() }
     }
 
     // MARK: - Appearance
@@ -71,7 +77,7 @@ struct ConfigurationView: View {
                 preview()
                     .frame(width: 80, height: 50)
                     .background(Wave.colors.surfaceSecondary)
-                    .clipShape(RoundedRectangle(cornerRadius: Wave.radius.r8))
+                    .clipShape(RoundedRectangle(cornerRadius: Wave.radius.r4))
                 Text(label)
                     .waveFont(Wave.font.caption)
                     .foregroundStyle(isSelected ? Wave.colors.accent : Wave.colors.textSecondary)
@@ -84,7 +90,7 @@ struct ConfigurationView: View {
                     .stroke(isSelected ? Wave.colors.accent : Wave.colors.border, lineWidth: isSelected ? 2 : 1)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressScale())
     }
 
     private var overlayPositionContent: some View {
@@ -136,7 +142,7 @@ struct ConfigurationView: View {
                                 .foregroundStyle(appState.overlayPositionY == pos.value ? Wave.colors.accent : Wave.colors.textSecondary)
                                 .clipShape(RoundedRectangle(cornerRadius: Wave.radius.r4))
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PressScale())
                     }
                 }
             }
@@ -166,6 +172,89 @@ struct ConfigurationView: View {
         ("Low", 30),
         ("Center", 120),
     ]
+
+    // MARK: - Animation
+
+    private var animationSection: some View {
+        WaveCard {
+            VStack(alignment: .leading, spacing: Wave.spacing.s16) {
+                WaveSectionHeader("Animation")
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: Wave.spacing.s8) {
+                    Text("Style")
+                        .waveFont(Wave.font.bodyMedium)
+                        .foregroundStyle(Wave.colors.textPrimary)
+
+                    WaveSegmentedControl(selection: $appState.overlayAnimationStyle)
+                }
+                .disabled(reduceMotion)
+                .opacity(reduceMotion ? 0.4 : 1)
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: Wave.spacing.s8) {
+                    HStack {
+                        Text("Speed")
+                            .waveFont(Wave.font.bodyMedium)
+                            .foregroundStyle(Wave.colors.textPrimary)
+                        Spacer()
+                        Text(speedLabel)
+                            .waveFont(Wave.font.captionLight)
+                            .foregroundStyle(Wave.colors.textSecondary)
+                            .monospacedDigit()
+                    }
+
+                    HStack(spacing: Wave.spacing.s12) {
+                        WaveDottedSlider(
+                            value: $appState.overlayAnimationSpeed,
+                            range: 0.25...2.0,
+                            step: 0.05
+                        )
+                        WaveButton("Try it", kind: .secondary, action: playPreview)
+                            .disabled(reduceMotion)
+                    }
+
+                    HStack {
+                        Text("0.25×")
+                        Spacer()
+                        Text("1×")
+                        Spacer()
+                        Text("2×")
+                    }
+                    .waveFont(Wave.font.micro)
+                    .foregroundStyle(Wave.colors.textTertiary)
+                }
+                .disabled(reduceMotion)
+                .opacity(reduceMotion ? 0.4 : 1)
+
+                if reduceMotion {
+                    Text("Disabled while macOS Reduce Motion is on. The overlay will fade in instantly.")
+                        .waveFont(Wave.font.captionLight)
+                        .foregroundStyle(Wave.colors.textSecondary)
+                }
+            }
+        }
+    }
+
+    private var speedLabel: String {
+        String(format: "%.2f×", appState.overlayAnimationSpeed)
+    }
+
+    private func playPreview() {
+        guard !reduceMotion else { return }
+        previewController.overlayStyle = appState.overlayStyle
+        previewController.positionY = appState.overlayPositionY
+        previewController.animationStyle = appState.overlayAnimationStyle
+        previewController.animationSpeed = appState.overlayAnimationSpeed
+        previewController.show(levelMonitor: previewLevelMonitor)
+
+        let showDuration = 0.4 * appState.overlayAnimationSpeed
+        DispatchQueue.main.asyncAfter(deadline: .now() + showDuration + 0.6) { [previewController] in
+            previewController.hide()
+        }
+    }
 
     // MARK: - Keyboard Shortcuts
 

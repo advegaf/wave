@@ -62,7 +62,9 @@ struct MenuBarView: View {
                         Button(action: { copyLast(last) }) {
                             Image(systemName: "doc.on.doc")
                                 .foregroundStyle(Wave.colors.textSecondary)
-                        }.buttonStyle(.plain)
+                                .frame(width: 28, height: 28)
+                                .contentShape(Rectangle())
+                        }.buttonStyle(PressScale())
                     }
                     Text(preview(of: last))
                         .waveFont(Wave.font.captionLight)

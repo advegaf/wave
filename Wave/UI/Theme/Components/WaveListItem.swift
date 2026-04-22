@@ -24,7 +24,7 @@ struct WaveListItem<Accessory: View>: View {
     }
 
     var body: some View {
-        HStack(spacing: Wave.spacing.s12) {
+        let row = HStack(spacing: Wave.spacing.s12) {
             if let leading {
                 Image(systemName: leading)
                     .foregroundStyle(Wave.colors.textSecondary)
@@ -47,9 +47,15 @@ struct WaveListItem<Accessory: View>: View {
         .padding(.horizontal, Wave.spacing.s12)
         .padding(.vertical, Wave.spacing.s10)
         .background(isHovering ? Wave.colors.surfaceHover : Color.clear)
+        .animation(.easeInOut(duration: 0.12), value: isHovering)
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
-        .onTapGesture { onTap?() }
+
+        if let onTap {
+            row.waveTappable(action: onTap)
+        } else {
+            row
+        }
     }
 }
 

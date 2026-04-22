@@ -51,6 +51,8 @@ final class RecordingCoordinator: @unchecked Sendable {
     var hotkeyManager: GlobalHotkeyManager?
     var overlayStyle: OverlayStyle = .full
     var overlayPositionY: CGFloat = 10
+    var overlayAnimationStyle: OverlayAnimationStyle = .smooth
+    var overlayAnimationSpeed: Double = 1.0
 
     // MARK: - Pre-fetched Context (loaded during recording)
     private var prefetchedDictionary: [DictionaryEntry] = []
@@ -120,9 +122,11 @@ final class RecordingCoordinator: @unchecked Sendable {
         // Handle media playback
         mediaController.handleRecordingStart(behavior: playbackBehavior)
 
-        // Show overlay waveform (sync style + position before showing)
+        // Show overlay waveform (sync style + position + animation before showing)
         overlayController?.overlayStyle = overlayStyle
         overlayController?.positionY = overlayPositionY
+        overlayController?.animationStyle = overlayAnimationStyle
+        overlayController?.animationSpeed = overlayAnimationSpeed
         overlayController?.show(levelMonitor: levelMonitor)
 
         // Start listening for escape

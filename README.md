@@ -51,13 +51,12 @@ open Wave.xcodeproj
 
 ### First launch
 
-1. **Choose providers** (WhisperKit local + Claude recommended)
-2. **Enter API keys** (only the ones you need)
-3. **Grant permissions** (Microphone + Accessibility)
-4. **Download voice model** (~150 MB, happens automatically during setup)
-5. **Set preferences** (rewrite level, overlay style)
+The setup wizard runs automatically the first time you open Wave:
 
-Then press **Cmd+Shift+Space** anywhere and start talking.
+1. **Grant permissions** (Microphone + Accessibility)
+2. **Download voice model** (~150 MB, runs automatically — local WhisperKit base model)
+
+Then press **Cmd+Shift+Space** anywhere and start talking. You can configure providers, API keys (Anthropic / OpenAI), rewrite levels, and overlay style any time from the menu bar → Open Wave.
 
 ## Architecture
 
@@ -111,7 +110,7 @@ Wave has a full settings app accessible from the menu bar:
 
 - **Home** ... stats, quick actions, changelog
 - **Modes** ... light / moderate / heavy rewrite levels
-- **Dictionary** ... custom words organized by category (names, jargon, places)
+- **Vocabulary** ... custom words organized by category (names, jargon, places)
 - **Snippets** ... voice-triggered text expansions
 - **Configuration** ... overlay style, keyboard shortcuts, position
 - **Sound** ... microphone settings, media pause behavior, chime volume

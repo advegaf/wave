@@ -8,8 +8,10 @@ struct WaveHelpTooltip: View {
         Button(action: { isShowing.toggle() }) {
             Image(systemName: "questionmark.circle")
                 .foregroundStyle(Wave.colors.textTertiary)
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressScale())
         .popover(isPresented: $isShowing) {
             Text(helpText)
                 .waveFont(Wave.font.captionLight)

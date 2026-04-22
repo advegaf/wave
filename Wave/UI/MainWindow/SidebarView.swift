@@ -11,7 +11,6 @@ struct SidebarView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 24, height: 24)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
                 Text("Wave")
                     .waveFont(Wave.font.cardTitle)
                     .foregroundStyle(Wave.colors.textPrimary)
@@ -78,8 +77,10 @@ private struct SidebarRow: View {
             .padding(.vertical, Wave.spacing.s8)
             .background(rowBackground)
             .clipShape(RoundedRectangle(cornerRadius: Wave.radius.r8))
+            .animation(.easeInOut(duration: 0.12), value: isHovering)
+            .animation(.easeInOut(duration: 0.12), value: isSelected)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressScale())
         .onHover { hovering in
             isHovering = hovering
         }

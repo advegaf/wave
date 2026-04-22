@@ -16,6 +16,8 @@ final class AppState {
     var playbackBehavior: PlaybackBehavior
     var hasCompletedSetup: Bool
     var overlayPositionY: CGFloat
+    var overlayAnimationStyle: OverlayAnimationStyle
+    var overlayAnimationSpeed: Double
 
     init() {
         let prefs = UserPreferences()
@@ -36,6 +38,8 @@ final class AppState {
         self.silenceRemoval = prefs.silenceRemoval
         self.hasCompletedSetup = prefs.hasCompletedSetup
         self.overlayPositionY = CGFloat(prefs.overlayPositionY)
+        self.overlayAnimationStyle = OverlayAnimationStyle(rawValue: prefs.overlayAnimationStyle) ?? .smooth
+        self.overlayAnimationSpeed = max(0.25, min(2.0, prefs.overlayAnimationSpeed))
 
         // Migrate from old autoPauseMedia bool to PlaybackBehavior
         if let oldValue = UserDefaults.standard.object(forKey: "autoPauseMedia") as? Bool {
@@ -70,6 +74,8 @@ final class AppState {
         prefs.playbackBehavior = playbackBehavior.rawValue
         prefs.hasCompletedSetup = hasCompletedSetup
         prefs.overlayPositionY = Double(overlayPositionY)
+        prefs.overlayAnimationStyle = overlayAnimationStyle.rawValue
+        prefs.overlayAnimationSpeed = overlayAnimationSpeed
     }
 
     // MARK: - WhisperKit Status

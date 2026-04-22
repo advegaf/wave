@@ -16,6 +16,6 @@ struct WaveChip: View {
                 .clipShape(Capsule())
                 .overlay(Capsule().stroke(isSelected ? Wave.colors.accent.opacity(0.4) : Wave.colors.border, lineWidth: 1))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressScale())
     }
 }

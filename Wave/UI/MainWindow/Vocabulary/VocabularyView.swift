@@ -103,8 +103,10 @@ struct VocabularyView: View {
                                     Image(systemName: "trash")
                                         .waveFont(Wave.font.caption)
                                         .foregroundStyle(Wave.colors.destructive)
+                                        .frame(width: 28, height: 28)
+                                        .contentShape(Rectangle())
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(PressScale())
                             }
 
                             if index < entries.count - 1 {

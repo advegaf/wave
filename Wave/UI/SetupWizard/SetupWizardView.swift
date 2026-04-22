@@ -9,12 +9,16 @@ struct SetupWizardView: View {
     @State private var modelDownloaded = false
     @State private var modelError: String?
     @State private var downloadStatus = "Preparing..."
+    // Permission state — tracked here so the view re-renders when the user
+    // grants permission via the system dialog or System Settings.
+    @State private var micGranted = AudioSessionManager.shared.hasMicrophonePermission
+    @State private var accessibilityGranted = AccessibilityManager.shared.isAccessibilityEnabled
 
     let totalSteps = 2
 
     var body: some View {
         ZStack {
-            Wave.colors.surfaceSecondary
+            Wave.colors.surfacePrimary
                 .ignoresSafeArea()
 
             VStack(spacing: Wave.spacing.s24) {
@@ -28,17 +32,15 @@ struct SetupWizardView: View {
                 }
                 .padding(.top, Wave.spacing.s32)
 
-                // Active step inside a hero card
-                WaveCard(style: .hero, padding: Wave.spacing.s32) {
-                    Group {
-                        switch currentStep {
-                        case 0: welcomeStep
-                        case 1: modelAndFinishStep
-                        default: EmptyView()
-                        }
+                // Active step — flat, no nested surface tone
+                Group {
+                    switch currentStep {
+                    case 0: welcomeStep
+                    case 1: modelAndFinishStep
+                    default: EmptyView()
                     }
-                    .frame(maxWidth: .infinity)
                 }
+                .frame(maxWidth: .infinity)
                 .padding(.horizontal, Wave.spacing.s32)
 
                 // Navigation buttons
@@ -68,6 +70,15 @@ struct SetupWizardView: View {
             }
         }
         .frame(minWidth: 640, minHeight: 520)
+        .onAppear { refreshPermissions() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            refreshPermissions()
+        }
+    }
+
+    private func refreshPermissions() {
+        micGranted = AudioSessionManager.shared.hasMicrophonePermission
+        accessibilityGranted = AccessibilityManager.shared.isAccessibilityEnabled
     }
 
     // MARK: - Step 0: Welcome + Permissions
@@ -79,6 +90,7 @@ struct SetupWizardView: View {
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 80, height: 80)
                 .clipShape(RoundedRectangle(cornerRadius: 18))
+                .imageOutline(radius: 18)
                 .deepCardShadow()
 
             VStack(spacing: Wave.spacing.s8) {
@@ -96,16 +108,19 @@ struct SetupWizardView: View {
                 PermissionRow(
                     title: "Microphone",
                     description: "Required for voice recording",
-                    isGranted: AudioSessionManager.shared.hasMicrophonePermission,
+                    isGranted: micGranted,
                     action: {
-                        Task { await AudioSessionManager.shared.requestMicrophonePermission() }
+                        Task {
+                            let granted = await AudioSessionManager.shared.requestMicrophonePermission()
+                            await MainActor.run { micGranted = granted }
+                        }
                     }
                 )
 
                 PermissionRow(
                     title: "Accessibility",
                     description: "Required to paste text into other apps",
-                    isGranted: AccessibilityManager.shared.isAccessibilityEnabled,
+                    isGranted: accessibilityGranted,
                     action: {
                         AccessibilityManager.shared.requestAccessibilityPermission()
                     }
@@ -225,15 +240,22 @@ struct PermissionRow: View {
 
             Spacer()
 
-            if isGranted {
+            // Both states stay in the layout and cross-fade so the row width
+            // never jumps when the user grants permission.
+            ZStack {
+                WaveButton("Grant", kind: .primary) { action() }
+                    .opacity(isGranted ? 0 : 1)
+                    .allowsHitTesting(!isGranted)
+
                 Image(systemName: "checkmark.circle.fill")
                     .resizable()
                     .scaledToFit()
                     .frame(width: 20, height: 20)
                     .foregroundStyle(Wave.colors.success)
-            } else {
-                WaveButton("Grant", kind: .primary) { action() }
+                    .opacity(isGranted ? 1 : 0)
+                    .scaleEffect(isGranted ? 1 : 0.6)
             }
+            .animation(.easeInOut(duration: 0.18), value: isGranted)
         }
         .padding(Wave.spacing.s16)
         .background(Wave.colors.surfaceSecondary)

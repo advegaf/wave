@@ -71,6 +71,6 @@ private struct ModeCard: View {
             )
             .softCardShadow()
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressScale())
     }
 }

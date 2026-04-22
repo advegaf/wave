@@ -77,9 +77,50 @@ final class WhisperKitTranscriber: @unchecked Sendable {
         }
 
         let results = try await kit.transcribe(audioArray: samples)
-        let text = results.map { $0.text }.joined(separator: " ")
+        let joined = results.map { $0.text }.joined(separator: " ")
+        return Self.stripNonSpeechAnnotations(joined)
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        return text
+    }
+
+    /// Strip Whisper non-speech annotations (e.g. `[BLANK_AUDIO]`, `(music playing)`,
+    /// `*laughter*`, `♪`) that the model emits as plain text inside segment text.
+    /// These are not real Whisper vocabulary tokens, so `suppressTokens` does not
+    /// catch them — they have to be filtered after decoding.
+    ///
+    /// Whitelisted to known annotations so legitimate parentheticals the user
+    /// might dictate (e.g. "(in the drawer)") are preserved.
+    static func stripNonSpeechAnnotations(_ text: String) -> String {
+        let words = "blank[_ ]audio|music( playing)?|noise|silence|no[_ ]speech|inaudible|laughter|applause|(speaking[_ ])?foreign[_ ]language"
+        let patterns = [
+            #"\[\s*(?:\#(words))\s*\]"#,        // [BLANK_AUDIO], [music playing]
+            #"\(\s*(?:\#(words))\s*\)"#,        // (music playing), (inaudible)
+            #"\*\s*(?:\#(words))\s*\*"#,        // *music*, *laughter*
+            #"♪+"#,                              // ♪ ♪♪♪
+        ]
+
+        var stripped = text
+        for pattern in patterns {
+            stripped = stripped.replacingOccurrences(
+                of: pattern,
+                with: "",
+                options: [.regularExpression, .caseInsensitive]
+            )
+        }
+
+        // Collapse whitespace runs created by the strip (e.g. "hi  there").
+        stripped = stripped.replacingOccurrences(
+            of: #"[ \t]{2,}"#,
+            with: " ",
+            options: .regularExpression
+        )
+        // Tidy whitespace around line breaks created by stripping a leading
+        // annotation on its own line.
+        stripped = stripped.replacingOccurrences(
+            of: #"[ \t]*\n[ \t]*"#,
+            with: "\n",
+            options: .regularExpression
+        )
+        return stripped
     }
 }
 

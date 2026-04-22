@@ -12,6 +12,8 @@ final class UserPreferences {
     @AppStorage("hasCompletedSetup") var hasCompletedSetup: Bool = false
     @AppStorage("launchAtLogin") var launchAtLogin: Bool = false
     @AppStorage("overlayPositionY") var overlayPositionY: Double = 10 // px above dock
+    @AppStorage("overlayAnimationStyle") var overlayAnimationStyle: String = OverlayAnimationStyle.smooth.rawValue
+    @AppStorage("overlayAnimationSpeed") var overlayAnimationSpeed: Double = 1.0
 
     // Local LLM selection (Wave-side id from `LocalLLMRegistry.all`)
     @AppStorage("selectedLocalLLMModelId") var selectedLocalLLMModelId: String = ""

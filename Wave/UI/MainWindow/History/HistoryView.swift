@@ -144,19 +144,20 @@ private struct HistoryRowView: View {
 
             Spacer()
 
-            // Accessory: copy icon on hover
-            if isHovering {
-                Image(systemName: "doc.on.doc")
-                    .foregroundStyle(Wave.colors.textTertiary)
-                    .frame(width: 16)
-            }
+            // Accessory: copy icon — kept in layout so the row width never shifts
+            Image(systemName: "doc.on.doc")
+                .foregroundStyle(Wave.colors.textTertiary)
+                .frame(width: 16)
+                .opacity(isHovering ? 1 : 0)
+                .animation(.easeInOut(duration: 0.15), value: isHovering)
         }
         .padding(.horizontal, Wave.spacing.s12)
         .padding(.vertical, Wave.spacing.s10)
         .background(isHovering ? Wave.colors.surfaceHover : Color.clear)
+        .animation(.easeInOut(duration: 0.12), value: isHovering)
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
-        .onTapGesture {
+        .waveTappable {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(entry.cleanedText, forType: .string)
         }
