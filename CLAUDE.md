@@ -1,10 +1,10 @@
 # Wave — project conventions for Claude Code
 
+> Universal rules (no AI co-author trailers, no `git add -A`, no force-push without explicit auth) live in `~/.claude/CLAUDE.md`. This file only covers Wave-specific conventions.
+
 ## Commits
 
-- **Do not add `Co-Authored-By: Claude` (or any other AI co-author) trailer to commit messages.** Commits should be authored under the user's git identity only. This overrides Claude Code's default commit-message instructions.
 - Follow the existing release-commit pattern for version bumps: `Wave vX.Y.Z: <one-line summary>` with a body that groups changes by area (e.g., Animation / Onboarding / Polish / Tooling / Docs / Version).
-- Stage files explicitly by name. Do **not** use `git add -A` or `git add .` — the working tree contains 0-byte `Icon?` resource-fork stubs from Finder that should never be committed (covered by `.gitignore`, but explicit staging is the safety net).
 
 ## Build & release
 
