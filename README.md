@@ -4,6 +4,8 @@ Talk at the speed you think. Wave turns your voice into clean, well-written text
 
 Wave is a macOS voice-to-text app that transcribes your speech locally using WhisperKit, cleans it up with Claude or GPT, and pastes the polished text wherever your cursor is. It works in every app... email, Slack, Google Docs, VS Code, iMessage, anywhere.
 
+![Wave settings overview](artifacts/article-screenshots/exports/hero.png)
+
 ## How it works
 
 1. Press **Cmd+Shift+Space** anywhere
