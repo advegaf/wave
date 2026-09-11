@@ -55,3 +55,9 @@ Package.resolved
 
 # macOS Finder custom-icon resource-fork stubs
 Icon?
+
+# Finder custom-folder-icon resource forks
+Icon?
+
+# Coverage output from a Debug run
+default.profraw

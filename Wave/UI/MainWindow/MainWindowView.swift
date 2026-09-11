@@ -85,6 +85,14 @@ struct MicrophoneSelector: View {
         }
         .menuStyle(.borderlessButton)
         .onAppear {
+            // A curated run names a fixed device. The real list starts with
+            // whatever CoreAudio hands back first, and a nearby iPhone joins
+            // and leaves it, so a capture taken for the README would otherwise
+            // say something different every time it is regenerated.
+            if Demo.isActive {
+                selectedDevice = "MacBook Pro Microphone"
+                return
+            }
             devices = AudioCaptureEngine.availableInputDevices()
             if let first = devices.first {
                 selectedDevice = first.name

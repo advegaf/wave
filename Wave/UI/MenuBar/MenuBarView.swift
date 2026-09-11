@@ -45,7 +45,13 @@ struct MenuBarView: View {
             // Rewrite level picker — no label, full width for 4 segments
             WaveSegmentedControl(selection: Binding(
                 get: { appState.selectedRewriteLevel },
-                set: { appState.selectedRewriteLevel = $0 }
+                set: {
+                    appState.selectedRewriteLevel = $0
+                    // Every other place the level is set writes it back. This
+                    // one did not, so a mode picked from the menu bar lasted
+                    // until the next launch and then reverted.
+                    appState.saveToPreferences()
+                }
             ))
             .padding(.horizontal, Wave.spacing.s16)
             .padding(.vertical, Wave.spacing.s10)

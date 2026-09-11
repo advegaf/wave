@@ -11,10 +11,28 @@ final class DatabaseManager: @unchecked Sendable {
         let waveDir = appSupport.appendingPathComponent("Wave", isDirectory: true)
         try FileManager.default.createDirectory(at: waveDir, withIntermediateDirectories: true)
 
-        let dbPath = waveDir.appendingPathComponent("wave.sqlite").path
+        // A demo run gets its own database file, deleted before use, so a
+        // screenshot can never photograph a real transcript or vocabulary and
+        // the same run always produces the same picture.
+        let name = Demo.isActive ? "wave-demo.sqlite" : "wave.sqlite"
+        let dbPath = waveDir.appendingPathComponent(name).path
+        if Demo.isActive {
+            for suffix in ["", "-wal", "-shm"] {
+                try? FileManager.default.removeItem(atPath: dbPath + suffix)
+            }
+        }
         dbPool = try DatabasePool(path: dbPath)
 
         try migrator.migrate(dbPool!)
+
+        if Demo.isActive { try seedDemoFixture() }
+    }
+
+    /// Writes the curated fixture into the throwaway demo database.
+    private func seedDemoFixture() throws {
+        for entry in Demo.vocabulary { try addDictionaryEntry(entry) }
+        for snippet in Demo.snippets { try addSnippet(snippet) }
+        for entry in Demo.history { try addHistoryEntry(entry) }
     }
 
     private var migrator: DatabaseMigrator {

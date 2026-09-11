@@ -39,7 +39,7 @@ struct SidebarView: View {
                 Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0")")
                     .waveFont(Wave.font.micro)
                     .foregroundStyle(Wave.colors.textTertiary)
-                Text("© 2026 Angel Vega. All rights reserved.")
+                Text("© 2026 Angel Vega. MIT licensed.")
                     .waveFont(Wave.font.micro)
                     .foregroundStyle(Wave.colors.textTertiary)
             }
