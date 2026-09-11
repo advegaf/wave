@@ -52,8 +52,13 @@ struct WaveApp: App {
         setupDatabase()
         syncCoordinatorSettings()
         setupOverlay()
-        setupHotkeys()
-        coordinator.preloadWhisperModel(appState: appState)
+        // Skipped on a capture run. Registering the chord would take
+        // Cmd+Shift+Space from whatever is in front, and preloading the model
+        // pulls about 150MB before the window is worth photographing.
+        if !Demo.isActive {
+            setupHotkeys()
+            coordinator.preloadWhisperModel(appState: appState)
+        }
     }
 
     private func setupDatabase() {
@@ -121,7 +126,11 @@ private struct FirstLaunchOpener: ViewModifier {
 
     func body(content: Content) -> some View {
         content.task {
-            guard !didOpen, !hasCompletedSetup else { return }
+            // A demo run is past the wizard by definition, so the first-launch
+            // condition never fires for it. It still needs the window opened:
+            // LSUIElement apps do not auto-show Window scenes, and there is
+            // nothing to photograph until something asks.
+            guard !didOpen, !hasCompletedSetup || Demo.isActive else { return }
             didOpen = true
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)

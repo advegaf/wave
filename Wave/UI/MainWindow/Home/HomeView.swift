@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct HomeView: View {
@@ -116,25 +117,25 @@ struct HomeView: View {
                 WaveSectionHeader(
                     "What's New",
                     trailing: AnyView(
-                        WaveButton("View all changes", kind: .ghost) {}
+                        WaveButton("View all changes", kind: .ghost) {
+                            NSWorkspace.shared.open(Self.releasesURL)
+                        }
                     )
                 )
 
                 HStack(alignment: .top, spacing: Wave.spacing.s12) {
-                    Text(formattedDate(Date()))
+                    Text(Self.latestRelease.date)
                         .waveFont(Wave.font.captionLight)
                         .foregroundStyle(Wave.colors.textTertiary)
                         .frame(width: 60, alignment: .leading)
 
                     VStack(alignment: .leading, spacing: Wave.spacing.s4) {
-                        Text("Initial Release")
+                        Text(Self.latestReleaseTitle)
                             .waveFont(Wave.font.bodySemibold)
                             .foregroundStyle(Wave.colors.textPrimary)
-                        Text("Voice-to-text with AI cleanup. Deepgram + Whisper for transcription, Claude + GPT for rewriting.")
+                        Text(Self.latestRelease.summary)
                             .waveFont(Wave.font.body)
                             .foregroundStyle(Wave.colors.textSecondary)
-                        WaveButton("Try it now", kind: .ghost) {}
-                            .padding(.top, Wave.spacing.s2)
                     }
                 }
             }
@@ -151,18 +152,21 @@ struct HomeView: View {
         timeSaved = stats.timeSavedMinutes
     }
 
-    private func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        let base = formatter.string(from: date)
-        let day = Calendar.current.component(.day, from: date)
-        let suffix: String
-        switch day {
-        case 1, 21, 31: suffix = "st"
-        case 2, 22: suffix = "nd"
-        case 3, 23: suffix = "rd"
-        default: suffix = "th"
-        }
-        return "\(base)\(suffix)"
+    // MARK: - Release note
+
+    /// What the What's New card shows. Written down rather than fetched: Wave
+    /// makes no network calls of its own, and the card this replaces printed
+    /// today's date beside a description of a stack the app no longer uses.
+    /// Update it in the same commit that moves CFBundleShortVersionString.
+    static let latestRelease = (
+        date: "Apr 22",
+        summary: "Transcription and rewriting both run on this Mac now. WhisperKit for the speech, a local MLX model for the cleanup. No keys, no account, no request leaves the machine."
+    )
+
+    static var latestReleaseTitle: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
+        return "Version \(version)"
     }
+
+    static let releasesURL = URL(string: "https://github.com/advegaf/wave/releases")!
 }

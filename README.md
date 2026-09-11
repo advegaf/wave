@@ -1,142 +1,134 @@
-# Wave
+<p align="center">
+  <img src="docs/images/logo.png" width="120" alt="Wave">
+</p>
 
-Talk at the speed you think. Wave turns your voice into clean, well-written text in any app.
+<h1 align="center">Wave</h1>
 
-Wave is a macOS voice-to-text app that transcribes your speech locally using WhisperKit, cleans it up with Claude or GPT, and pastes the polished text wherever your cursor is. It works in every app... email, Slack, Google Docs, VS Code, iMessage, anywhere.
+<p align="center">
+  Talk at the speed you think. Hold a key, say the thing, and clean text lands wherever the cursor already was. The speech and the cleanup both run on your Mac.
+</p>
 
-## How it works
+<p align="center">
+  <img src="docs/images/hero.png" width="960" alt="Wave's Home page, showing dictation stats for the week above a Get Started list and the release note for version 0.7.2">
+</p>
 
-1. Press **Cmd+Shift+Space** anywhere
-2. Talk naturally (ramble, self-correct, use filler words)
-3. Wave transcribes locally, rewrites with AI, and pastes clean text
+<p align="center">
+  <a href="https://github.com/advegaf/wave/releases/latest"><img src="docs/images/download.png" width="210" alt="Download Wave for macOS"></a>
+</p>
 
-That's it. ~1.5 second pipeline from voice to polished text.
+<p align="center">
+  <sub>Free, and nothing leaves the machine. Requires macOS 26 and Apple Silicon.</sub>
+</p>
 
-## What makes Wave different
+Dictation on a Mac has been the same trade for years. The built in one hears you
+accurately and writes down every "um" and every sentence you started twice. The
+good ones fix that by sending your voice to a server.
 
-- **Local transcription** via WhisperKit on Apple Silicon. No audio leaves your Mac.
-- **AI-powered cleanup**, not just raw dictation. Removes filler words, fixes grammar, restructures messy sentences.
-- **Tone-aware by app**. Casual in Slack, professional in email. Detects which app you're in.
-- **Three rewrite levels**. Light (just fix grammar), Moderate (restructure for clarity), Heavy (full professional rewrite).
-- **iOS 9 Siri waveform**. Animated overlay floats above your dock while recording.
-- **Personal dictionary**. Teach Wave names, jargon, and acronyms it keeps getting wrong.
-- **Voice-triggered snippets**. Say "calendar" and Wave expands your scheduling link.
-- **BYOK (Bring Your Own Keys)**. Uses your Anthropic or OpenAI API keys. No subscription, no middleman.
+Wave takes the third option. Whisper hears you, and a small language model
+tidies what it heard. Both run on this Mac, off files on your disk. There is no
+account and no key to paste. The only time Wave uses the network is the first
+download of a model; after that you can be offline and it still works.
 
-## Requirements
+Press Command Shift Space, talk the way you actually talk, press it again.
+Escape throws the recording away. A waveform floats above the Dock while it
+listens so you can see it is hearing you.
 
-- macOS 14.0+ (Sonoma) or macOS 26.0+ (Tahoe) for liquid glass effects
-- Apple Silicon (M1 or later) for local WhisperKit transcription
-- Anthropic API key (for Claude text cleanup) or OpenAI API key (for GPT)
+## Install
 
-## Getting started
+Open the disk image and drag Wave into Applications.
 
-### From source
+The build is signed ad hoc rather than with a Developer ID, so Gatekeeper will
+refuse the first launch. Open System Settings, go to Privacy & Security, and
+the note about Wave near the bottom has an Open Anyway button. That is once,
+not every launch. Notarized builds are the plan; they are not what ships today.
 
-```bash
-# Clone
-git clone https://github.com/advegaf/wave.git
-cd wave
+Requires macOS 26 and an Apple Silicon Mac.
 
-# Generate Xcode project
+## How much it rewrites is your call
+
+<p align="center">
+  <img src="docs/images/modes.png" width="960" alt="The Modes page, with Raw, Light, Moderate and Heavy rewrite levels and Heavy selected">
+</p>
+
+Raw pastes the transcript and nothing else. No model runs, so it is the fastest
+and the only mode that cannot invent a word you did not say.
+
+Light strips the fillers and the false starts. Moderate fixes grammar and cuts
+run on sentences apart while leaving your phrasing alone. Heavy reads which app
+is in front and matches it, so the same sentence comes out casual in Slack and
+formal in Mail.
+
+All four are in the menu bar popover, and a shortcut cycles them without
+opening anything. The mode you leave it on is the mode it uses next time.
+
+## Words it keeps getting wrong
+
+<p align="center">
+  <img src="docs/images/vocabulary.png" width="960" alt="The Vocabulary page, with words filed under Names, Jargon, Places and General">
+</p>
+
+Every transcriber mangles the same handful of words: your surname, the name of
+the thing you are building, whatever your team calls the staging environment.
+Add them here, under Names, Jargon, Places or General, and give a replacement
+if the spelling out loud is not the spelling on the page.
+
+Snippets are the other half of it. Give a phrase you would actually say, pair
+it with the text it should become, and saying the phrase pastes the text.
+
+## Everything it wrote down
+
+<p align="center">
+  <img src="docs/images/history.png" width="960" alt="The History page, with five transcripts grouped under Today, each tagged with the app it was pasted into">
+</p>
+
+Every transcription is kept, searchable, with the app it went into. It is a
+local SQLite file. Nothing syncs it anywhere.
+
+## Models
+
+Whisper base handles the speech. For the rewrite, the Models Library carries
+five local models in MLX format: Llama 3.2 at 1B and 3B, Qwen 3 at 4B and 8B,
+and Phi 3.5 Mini, which is the default because it is the best trade between
+what it costs in memory and how well it follows an instruction. Each card
+shows what it will take on disk and in RAM before you install it.
+
+## Permissions
+
+| What you use | What it asks for | Why |
+| --- | --- | --- |
+| Recording anything | Microphone | It is a dictation app |
+| Pasting the result | Accessibility | The paste is a synthesised Command V, and posting keystrokes needs it |
+
+macOS grants these to a signed copy of an app rather than to its name, so a
+Wave you built yourself and a Wave from the release are two different apps as
+far as the permission is concerned. If Wave is already listed and still says it
+has no permission, switch that row off and on again.
+
+Nothing else is asked for. There is no analytics, no account, and no server
+that belongs to Wave.
+
+## Build it yourself
+
+```sh
 brew install xcodegen
 xcodegen generate
-
-# Open in Xcode
-open Wave.xcodeproj
-
-# Set your signing team in Signing & Capabilities
-# Build and run (Cmd+R)
+xcodebuild -project Wave.xcodeproj -scheme Wave -configuration Debug build
 ```
 
-### First launch
+`Tools/Screenshots/make-docs-images.sh` regenerates every image on this page.
+It launches the app under `WAVE_DEMO=curated`, which points the database at a
+throwaway file seeded with fixtures, so a capture never photographs whatever
+you have actually dictated.
 
-The setup wizard runs automatically the first time you open Wave:
+## Credit
 
-1. **Grant permissions** (Microphone + Accessibility)
-2. **Download voice model** (~150 MB, runs automatically — local WhisperKit base model)
+Built by [Angel Vega](https://github.com/advegaf).
 
-Then press **Cmd+Shift+Space** anywhere and start talking. You can configure providers, API keys (Anthropic / OpenAI), rewrite levels, and overlay style any time from the menu bar → Open Wave.
+Speech recognition is [WhisperKit](https://github.com/argmaxinc/WhisperKit).
+The rewrite runs on [MLX Swift](https://github.com/ml-explore/mlx-swift).
+Speech detection is Silero through
+[FluidAudio](https://github.com/FluidInference/FluidAudio).
 
-## Architecture
+## Licence
 
-```
-Cmd+Shift+Space
-    |
-    v
-AVAudioEngine (mic capture)
-    |
-    v
-WhisperKit (local transcription, ~300ms)
-    |
-    v
-Claude Haiku / GPT-4o (AI cleanup, ~700ms)
-    |
-    v
-CGEvent Cmd+V (paste into active app)
-```
-
-Built with:
-- **Swift + SwiftUI** (macOS native, AppKit for system integration)
-- **WhisperKit** for on-device speech-to-text
-- **Anthropic Claude / OpenAI GPT** for text cleanup
-- **KeyboardShortcuts** for global hotkeys
-- **GRDB** for local SQLite storage
-- **Core Animation** for the Siri waveform overlay
-
-## Project structure
-
-```
-Wave/
-  WaveApp.swift              # App entry point (MenuBarExtra + Window)
-  AppState.swift             # Global observable state
-  Core/
-    Audio/                   # Mic capture, silence detection, media control
-    AI/                      # Transcription + rewrite providers
-    Recording/               # State machine orchestrator
-    Storage/                 # SQLite database, API key storage
-    System/                  # Hotkeys, clipboard, accessibility
-  UI/
-    Overlay/                 # Siri waveform renderer + floating panel
-    MenuBar/                 # Menu bar dropdown
-    MainWindow/              # Settings app (8-section sidebar)
-    SetupWizard/             # First-run onboarding
-    Theme/                   # Dark minimal theme
-```
-
-## Settings
-
-Wave has a full settings app accessible from the menu bar:
-
-- **Home** ... stats, quick actions, changelog
-- **Modes** ... light / moderate / heavy rewrite levels
-- **Vocabulary** ... custom words organized by category (names, jargon, places)
-- **Snippets** ... voice-triggered text expansions
-- **Configuration** ... overlay style, keyboard shortcuts, position
-- **Sound** ... microphone settings, media pause behavior, chime volume
-- **Models Library** ... browse and configure voice + language models
-- **History** ... searchable log of all transcriptions
-
-## Keyboard shortcuts
-
-| Action | Shortcut |
-|--------|----------|
-| Start/stop recording | Cmd+Shift+Space |
-| Cancel recording | Escape |
-| Push to talk | Configurable |
-
-## Contributing
-
-Pull requests welcome. The codebase is Swift + SwiftUI targeting macOS.
-
-```bash
-# Generate project after changes
-xcodegen generate
-
-# Build
-xcodebuild -scheme Wave -configuration Debug build
-```
-
-## License
-
-MIT
+MIT. See [LICENSE](LICENSE).

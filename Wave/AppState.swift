@@ -36,7 +36,10 @@ final class AppState {
         self.soundEffectsVolume = Float(prefs.soundEffectsVolume)
         self.autoIncreaseVolume = prefs.autoIncreaseVolume
         self.silenceRemoval = prefs.silenceRemoval
-        self.hasCompletedSetup = prefs.hasCompletedSetup
+        // A demo run is always past the wizard, and never writes it back:
+        // saveToPreferences() is not called on a capture, so the real
+        // preference is left as the user set it.
+        self.hasCompletedSetup = Demo.isActive ? true : prefs.hasCompletedSetup
         self.overlayPositionY = CGFloat(prefs.overlayPositionY)
         self.overlayAnimationStyle = OverlayAnimationStyle(rawValue: prefs.overlayAnimationStyle) ?? .smooth
         self.overlayAnimationSpeed = max(0.25, min(2.0, prefs.overlayAnimationSpeed))
@@ -83,7 +86,7 @@ final class AppState {
     var isWhisperKitReady: Bool = false
 
     // MARK: - Navigation
-    var selectedSidebarItem: SidebarItem = .home
+    var selectedSidebarItem: SidebarItem = Demo.isActive ? Demo.page : .home
     var isMainWindowOpen: Bool = false
 
 }
