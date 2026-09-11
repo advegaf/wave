@@ -236,19 +236,27 @@ do {
     write(image, to: outDirectory.appendingPathComponent("download.png"))
 }
 
-// The windows, at their own size on the ground. No frame drawn: these are
-// windows already, and a frame around a frame reads as a mistake.
+// The windows on the ground, centred in a fixed canvas. No frame drawn: these
+// are windows already, and a frame around a frame reads as a mistake.
+//
+// The canvas is a constant rather than the capture's own size plus a margin.
+// macOS draws a key window a wider drop shadow than an inactive one, and a
+// capture carries that shadow as transparent margin, so sizing the canvas off
+// the measured content meant the same three figures came out 2176 wide on one
+// run and 2110 on the next. Fixing the canvas and centring inside it makes the
+// output the same every time, and a shadow that is 33px wider just sits 33px
+// further into the margin.
+let figureCanvas = CGSize(width: 2176, height: 1880)
 for name in ["modes", "vocabulary", "history"] {
     let capture = raw(name)
-    let margin: CGFloat = 120
-    let canvasSize = CGSize(width: capture.content.width + margin * 2,
-                            height: capture.content.height + margin * 2)
-    let image = ground(Int(canvasSize.width), Int(canvasSize.height))
+    let image = ground(Int(figureCanvas.width), Int(figureCanvas.height))
     withCanvas(image) {
-        place(capture, content: CGRect(x: margin, y: margin,
-                                       width: capture.content.width,
-                                       height: capture.content.height),
-              canvasHeight: canvasSize.height, interpolation: .none)
+        place(capture,
+              content: CGRect(x: (figureCanvas.width - capture.content.width) / 2,
+                              y: (figureCanvas.height - capture.content.height) / 2,
+                              width: capture.content.width,
+                              height: capture.content.height),
+              canvasHeight: figureCanvas.height, interpolation: .none)
     }
     write(image, to: outDirectory.appendingPathComponent(name + ".png"))
 }

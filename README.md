@@ -5,11 +5,11 @@
 <h1 align="center">Wave</h1>
 
 <p align="center">
-  Talk at the speed you think. Hold a key, say the thing, and clean text lands wherever the cursor already was. The speech and the cleanup both run on your Mac.
+  Talk at the speed you think. Hold a key, say it, and clean text lands wherever the cursor already was. The speech and the cleanup both run on your Mac.
 </p>
 
 <p align="center">
-  <img src="docs/images/hero.png" width="960" alt="Wave's Home page, showing dictation stats for the week above a Get Started list and the release note for version 0.7.2">
+  <img src="docs/images/hero.png" width="960" alt="Wave's Home page, showing dictation stats for the week above a Get Started list and the release note for version 0.7.3">
 </p>
 
 <p align="center">
@@ -24,14 +24,15 @@ Dictation on a Mac has been the same trade for years. The built in one hears you
 accurately and writes down every "um" and every sentence you started twice. The
 good ones fix that by sending your voice to a server.
 
-Wave takes the third option. Whisper hears you, and a small language model
-tidies what it heard. Both run on this Mac, off files on your disk. There is no
-account and no key to paste. The only time Wave uses the network is the first
-download of a model; after that you can be offline and it still works.
+Wave does neither. Whisper hears you and a small language model tidies what it
+heard, both of them running here, off files on your disk. There is no account
+and no key to paste. The network is used once, to pull down a model, and after
+that Wave works with the Wi-Fi off.
 
 Press Command Shift Space, talk the way you actually talk, press it again.
 Escape throws the recording away. A waveform floats above the Dock while it
-listens so you can see it is hearing you.
+listens, because the alternative is talking at a machine that gives you no sign
+it is recording.
 
 ## Install
 
@@ -50,8 +51,8 @@ Requires macOS 26 and an Apple Silicon Mac.
   <img src="docs/images/modes.png" width="960" alt="The Modes page, with Raw, Light, Moderate and Heavy rewrite levels and Heavy selected">
 </p>
 
-Raw pastes the transcript and nothing else. No model runs, so it is the fastest
-and the only mode that cannot invent a word you did not say.
+Raw pastes the transcript and nothing else. No model runs, which makes it the
+fastest of the four and the only one that cannot invent a word you did not say.
 
 Light strips the fillers and the false starts. Moderate fixes grammar and cuts
 run on sentences apart while leaving your phrasing alone. Heavy reads which app
@@ -72,8 +73,8 @@ the thing you are building, whatever your team calls the staging environment.
 Add them here, under Names, Jargon, Places or General, and give a replacement
 if the spelling out loud is not the spelling on the page.
 
-Snippets are the other half of it. Give a phrase you would actually say, pair
-it with the text it should become, and saying the phrase pastes the text.
+Snippets do the same job for whole phrases. Give one you would actually say,
+pair it with the text it should become, and saying it pastes the text.
 
 ## Everything it wrote down
 
@@ -81,8 +82,8 @@ it with the text it should become, and saying the phrase pastes the text.
   <img src="docs/images/history.png" width="960" alt="The History page, with five transcripts grouped under Today, each tagged with the app it was pasted into">
 </p>
 
-Every transcription is kept, searchable, with the app it went into. It is a
-local SQLite file. Nothing syncs it anywhere.
+Every transcription is kept, searchable, with the app it went into. It lives in
+a local SQLite file that nothing syncs anywhere.
 
 ## Models
 

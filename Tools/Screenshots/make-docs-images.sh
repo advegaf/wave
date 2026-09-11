@@ -42,7 +42,10 @@ pkill -x Wave || true
 # The icon, at the size the hero draws it. Copied rather than re-exported:
 # this is the same file the app ships.
 cp Wave/Assets.xcassets/AppIcon.appiconset/icon_512x512@2x.png "$RAW/logo.png"
-cp Wave/Assets.xcassets/AppIcon.appiconset/icon_512x512@2x.png docs/images/logo.png
+# The hero draws from the 1024 copy above. The README draws the same icon at
+# 120 points, so it ships at 512: the full one is 1.3MB of detail nobody at that
+# size can see, on the first image the page loads.
+sips -Z 512 -s format png "$RAW/logo.png" --out docs/images/logo.png >/dev/null
 
 swift Tools/Screenshots/ArticleImages.swift "$RAW" docs/images
 

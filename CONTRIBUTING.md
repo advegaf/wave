@@ -34,9 +34,15 @@ sqlite file that is deleted and reseeded on every launch, and it never calls
 `saveToPreferences()`. Without it a capture photographs your real transcripts
 and whatever vocabulary you have added.
 
-The window sizes in `docs/images` are stable across runs, and that is checked by
-running the script twice and comparing. The files are not byte identical: the
-search field has a caret in it and it blinks.
+Every file in `docs/images` comes out the same size on every run, because the
+canvases are constants in `ArticleImages.swift` rather than the measured size of
+a capture. That matters more than it sounds: macOS draws a key window a wider
+drop shadow than an inactive one, a capture carries that shadow as transparent
+margin, and sizing a canvas off it gave three figures that were 2176 wide on one
+run and 2110 on the next.
+
+The files are not byte identical between runs. The search field has a caret in
+it and it blinks.
 
 ## What this project holds itself to
 

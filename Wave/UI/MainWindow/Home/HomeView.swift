@@ -159,8 +159,8 @@ struct HomeView: View {
     /// today's date beside a description of a stack the app no longer uses.
     /// Update it in the same commit that moves CFBundleShortVersionString.
     static let latestRelease = (
-        date: "Apr 22",
-        summary: "Transcription and rewriting both run on this Mac now. WhisperKit for the speech, a local MLX model for the cleanup. No keys, no account, no request leaves the machine."
+        date: "Sep 11",
+        summary: "A rewrite level picked from the menu bar survives a relaunch now. This card used to print today's date beside a description of a stack Wave dropped in 0.7.0, so it says what shipped instead."
     )
 
     static var latestReleaseTitle: String {

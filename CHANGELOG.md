@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.7.3
+
+- **A rewrite level picked from the menu bar sticks.** Every other place the
+  level can be set wrote it back; the menu bar popover did not, so a mode chosen
+  there lasted until the next launch and then reverted to whatever the Modes
+  page last saved.
+- **What's New says what shipped.** The card printed today's date, whatever day
+  you opened it, beside the words "Initial Release" and a description of
+  Deepgram, Claude and GPT. Wave stopped calling any of them in 0.7.0. It now
+  carries the real release note, takes its version from the bundle, and "View
+  all changes" opens the releases page rather than doing nothing. "Try it now"
+  was a button wired to an empty closure and is gone.
+- The sidebar read "All rights reserved" underneath an MIT licence.
+- `Tools/Screenshots/make-docs-images.sh` regenerates every image in the README:
+  each page of the main window photographed through the window server with its
+  own shadow, composited onto a flat ground. It runs against a throwaway
+  database seeded with fixtures, so a capture cannot reach real transcripts,
+  vocabulary or preferences.
+
 ## 0.7.2
 
 - **Overlay animation is yours to set.** Configuration has an Animation section:
