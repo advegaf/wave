@@ -73,6 +73,15 @@ func windowNumber(matching wanted: CGRect) -> Int? {
 let scale = NSScreen.main?.backingScaleFactor ?? 2
 
 for attempt in 1...3 {
+    // Whatever the person running this was doing, they get it back. Activating
+    // is unavoidable (see below), so the app that was frontmost is remembered
+    // here and reactivated at the end rather than leaving the run in Wave.
+    let previous = NSWorkspace.shared.frontmostApplication
+
+    // `screencapture -l` sizes its output from the window list, and those
+    // bounds are a stale stub until something makes the window server redraw
+    // the window. Activating is what does that. It is the one unavoidable
+    // moment of focus theft in the run.
     app.activate(options: [.activateAllWindows])
     // Park the pointer off the window first. SwiftUI paints a hover highlight
     // under wherever the cursor is sitting, and a row lit up for no reason is
@@ -86,6 +95,12 @@ for attempt in 1...3 {
         usleep(50_000)
     }
     usleep(useconds_t(600_000 * attempt))
+    // Not a `defer`: the success path below calls `exit(0)`, which does not
+    // unwind, so a deferred restore would never run on the only path that
+    // matters.
+    func giveFocusBack() {
+        if let previous, previous != app { previous.activate() }
+    }
     guard let wanted = mainFrame() else {
         fail("no main window for \(owner); Accessibility permission may be missing for this terminal")
     }
@@ -104,12 +119,14 @@ for attempt in 1...3 {
        CGFloat(rep.pixelsWide) <= wanted.width * scale + slack,
        CGFloat(rep.pixelsHigh) >= wanted.height * scale - 4,
        CGFloat(rep.pixelsHigh) <= wanted.height * scale + slack {
+        giveFocusBack()
         print(out)
         exit(0)
     }
     // The stale bounds case: the right window squeezed into the wrong size.
     // Deleted rather than left for someone to read as evidence.
     try? FileManager.default.removeItem(atPath: out)
+    giveFocusBack()
 }
 
 fail("could not capture a file matching the \(owner) window; nothing written")

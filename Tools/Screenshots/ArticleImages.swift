@@ -246,17 +246,25 @@ do {
 // run and 2110 on the next. Fixing the canvas and centring inside it makes the
 // output the same every time, and a shadow that is 33px wider just sits 33px
 // further into the margin.
-let figureCanvas = CGSize(width: 2176, height: 1880)
+// 1920 rather than the capture's own 2176. The README draws these at 960, so
+// 1920 is exactly the two-to-one a retina display asks for and the rest was
+// 200KB per figure that nobody can see.
+let figureCanvas = CGSize(width: 1920, height: 1659)
+let figureMargin: CGFloat = 106
 for name in ["modes", "vocabulary", "history"] {
     let capture = raw(name)
     let image = ground(Int(figureCanvas.width), Int(figureCanvas.height))
     withCanvas(image) {
+        let box = CGRect(x: figureMargin, y: figureMargin,
+                         width: figureCanvas.width - figureMargin * 2,
+                         height: figureCanvas.height - figureMargin * 2)
+        let scale = min(box.width / capture.content.width, box.height / capture.content.height)
+        let width = capture.content.width * scale
+        let height = capture.content.height * scale
         place(capture,
-              content: CGRect(x: (figureCanvas.width - capture.content.width) / 2,
-                              y: (figureCanvas.height - capture.content.height) / 2,
-                              width: capture.content.width,
-                              height: capture.content.height),
-              canvasHeight: figureCanvas.height, interpolation: .none)
+              content: CGRect(x: box.midX - width / 2, y: box.midY - height / 2,
+                              width: width, height: height),
+              canvasHeight: figureCanvas.height)
     }
     write(image, to: outDirectory.appendingPathComponent(name + ".png"))
 }
