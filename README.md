@@ -121,6 +121,14 @@ It launches the app under `WAVE_DEMO=curated`, which points the database at a
 throwaway file seeded with fixtures, so a capture never photographs whatever
 you have actually dictated.
 
+## How I built it
+
+I built this with Claude Code and Codex working like a small team. One agent plans the work and
+writes a spec for each piece, subagents write the code from those specs, and the two tools review
+each other's changes. I approve the plan before any code gets written, I read every diff before
+it's committed, and nothing ships until the tests pass. Anything that touches security or user
+data I write or check line by line myself.
+
 ## Credit
 
 Built by [Angel Vega](https://github.com/advegaf).
